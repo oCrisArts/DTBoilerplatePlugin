@@ -55,9 +55,6 @@ declare const figma: {
   };
   openExternal: (url: string) => void;
   notify: (message: string, options?: { error?: boolean; timeout?: number }) => void;
-  currentUser?: {
-    id: string;
-  };
 };
 
 declare const __html__: string;
@@ -70,20 +67,19 @@ figma.showUI(__html__, {
 
 figma.ui.onmessage = async (message) => {
   if (message.type === "unlock-now") {
-    const userId = figma.currentUser?.id;
-    figma.openExternal(`https://dt-boilerplate-lp.vercel.app/?user_id=${userId}`);
+    figma.openExternal("https://dt-boilerplate-lp.vercel.app/");
     return;
   }
 
   // NOVA LÓGICA: Restauração de licença comprada via Landing Page
   if (message.type === "restore-purchase") {
-    const licenca = await obterEstadoLicenca(figma.clientStorage, figma.currentUser?.id, message.email);
+    const licenca = await obterEstadoLicenca(figma.clientStorage, undefined, message.email);
     if (licenca.premium) {
       await figma.clientStorage.setAsync("dt_boilerplate_user_email", message.email);
       figma.ui.postMessage({ type: "purchase-restored" });
       figma.notify("Licença restaurada com sucesso!");
     } else {
-      figma.notify("Nenhuma assinatura encontrada para este e-mail.", { error: true });
+      figma.notify("Nenhuma assinatura ativa encontrada para este e-mail.", { error: true });
     }
     return;
   }
@@ -91,8 +87,7 @@ figma.ui.onmessage = async (message) => {
   if (message.type !== "generate-variables") return;
 
   try {
-    const userId = figma.currentUser?.id;
-    const licenca = await obterEstadoLicenca(figma.clientStorage, userId);
+    const licenca = await obterEstadoLicenca(figma.clientStorage);
 
     if (!podeGerarDesignTokens(licenca)) {
       figma.ui.postMessage({ type: "unlock-required" });

@@ -2,43 +2,36 @@
   // src/plugin/licensing.ts
   var FREE_GENERATION_USED_KEY = "dt_boilerplate_free_generation_used";
   var USER_EMAIL_KEY = "dt_boilerplate_user_email";
-  var SUPABASE_URL = "https://lyexuguaeuwdtjeqwmst.supabase.co";
-  var SUPABASE_API_KEY = "sb_publishable_BJYVAnl9Arx7gEcHOXzHfA_Bj4iJXGO";
+  var PREMIUM_STATUS_KEY = "dt_boilerplate_premium_status";
+  var EDGE_FUNCTION_URL = "https://lyexuguaeuwdtjeqwmst.supabase.co/functions/v1/verify-license";
   async function verificarAssinaturaSupabase(userId, email) {
     try {
-      let query = `${SUPABASE_URL}/rest/v1/customers?select=subscription_status,lifetime&`;
-      if (email) {
-        query += `email=eq.${encodeURIComponent(email)}`;
-      } else if (userId) {
-        query += `user_id=eq.${encodeURIComponent(userId)}`;
-      } else {
-        return false;
-      }
-      const response = await fetch(query, {
+      if (!email) return false;
+      const response = await fetch(EDGE_FUNCTION_URL, {
+        method: "POST",
         headers: {
-          "apikey": SUPABASE_API_KEY,
-          "Authorization": `Bearer ${SUPABASE_API_KEY}`,
           "Content-Type": "application/json"
-        }
+        },
+        body: JSON.stringify({ email })
       });
       if (!response.ok) return false;
       const data = await response.json();
-      if (Array.isArray(data) && data.length > 0) {
-        const sub = data[0];
-        return sub.subscription_status === "active" || sub.lifetime === true;
-      }
-      return false;
+      return data.premium === true;
     } catch (error) {
       return false;
     }
   }
   async function obterEstadoLicenca(clientStorage, userId, emailForcado) {
     const geracaoGratuitaUtilizada = await clientStorage.getAsync(FREE_GENERATION_USED_KEY);
+    const storedPremium = await clientStorage.getAsync(PREMIUM_STATUS_KEY);
     const storedEmail = await clientStorage.getAsync(USER_EMAIL_KEY);
     const emailToCheck = emailForcado || storedEmail;
-    let premium = false;
-    if (userId || emailToCheck) {
+    let premium = storedPremium === true;
+    if (!premium && emailToCheck) {
       premium = await verificarAssinaturaSupabase(userId, emailToCheck);
+      if (premium) {
+        await clientStorage.setAsync(PREMIUM_STATUS_KEY, true);
+      }
     }
     return {
       geracaoGratuitaUtilizada: geracaoGratuitaUtilizada === true,
@@ -59,27 +52,24 @@
     themeColors: true
   });
   figma.ui.onmessage = async (message) => {
-    var _a, _b, _c;
     if (message.type === "unlock-now") {
-      const userId = (_a = figma.currentUser) == null ? void 0 : _a.id;
-      figma.openExternal(`https://dt-boilerplate-lp.vercel.app/?user_id=${userId}`);
+      figma.openExternal("https://dt-boilerplate-lp.vercel.app/");
       return;
     }
     if (message.type === "restore-purchase") {
-      const licenca = await obterEstadoLicenca(figma.clientStorage, (_b = figma.currentUser) == null ? void 0 : _b.id, message.email);
+      const licenca = await obterEstadoLicenca(figma.clientStorage, void 0, message.email);
       if (licenca.premium) {
         await figma.clientStorage.setAsync("dt_boilerplate_user_email", message.email);
         figma.ui.postMessage({ type: "purchase-restored" });
         figma.notify("Licen\xE7a restaurada com sucesso!");
       } else {
-        figma.notify("Nenhuma assinatura encontrada para este e-mail.", { error: true });
+        figma.notify("Nenhuma assinatura ativa encontrada para este e-mail.", { error: true });
       }
       return;
     }
     if (message.type !== "generate-variables") return;
     try {
-      const userId = (_c = figma.currentUser) == null ? void 0 : _c.id;
-      const licenca = await obterEstadoLicenca(figma.clientStorage, userId);
+      const licenca = await obterEstadoLicenca(figma.clientStorage);
       if (!podeGerarDesignTokens(licenca)) {
         figma.ui.postMessage({ type: "unlock-required" });
         return;

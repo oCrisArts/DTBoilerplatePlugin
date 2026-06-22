@@ -513,6 +513,7 @@ function UnlockModal({
   onRestore: (email: string) => void;
 }) {
   const [emailInput, setEmailInput] = useState("");
+  const [showRestoreSection, setShowRestoreSection] = useState(false);
 
   return (
     <div className="absolute inset-0 z-20 flex items-center justify-center bg-[rgba(12,12,13,0.45)] px-[24px]">
@@ -541,24 +542,36 @@ function UnlockModal({
           </div>
 
           <div className="mt-[16px] border-t border-[rgba(0,0,0,0.08)] pt-[16px]">
-            <p className="m-0 text-[#0c0c0d] font-semibold mb-[8px]" style={{ fontSize: F.xs }}>Já comprou pela Landing Page?</p>
-            <div className="flex gap-[8px]">
-              <input 
-                type="email" 
-                placeholder="E-mail da compra" 
-                value={emailInput}
-                onChange={e => setEmailInput(e.target.value)}
-                className="flex-1 bg-[#f7f7f8] border border-[rgba(0,0,0,0.08)] rounded-[6px] px-[10px] py-[6px] outline-none text-[#0c0c0d]"
-                style={{ fontSize: F.xs }}
-              />
-              <button 
-                onClick={() => onRestore(emailInput)}
-                className="bg-transparent border border-[rgba(0,0,0,0.08)] rounded-[6px] px-[12px] text-[#0c0c0d] font-semibold cursor-pointer hover:bg-[#f2f2f4]"
+            {!showRestoreSection ? (
+              <button
+                onClick={() => setShowRestoreSection(true)}
+                className="w-full bg-transparent border border-[rgba(0,0,0,0.08)] rounded-[6px] px-[12px] py-[8px] text-[#0c0c0d] font-semibold cursor-pointer hover:bg-[#f2f2f4]"
                 style={{ fontSize: F.xs }}
               >
-                Restaurar
+                Já sou assinante
               </button>
-            </div>
+            ) : (
+              <>
+                <p className="m-0 text-[#0c0c0d] font-semibold mb-[8px]" style={{ fontSize: F.xs }}>Já comprou pela Landing Page?</p>
+                <div className="flex gap-[8px]">
+                  <input 
+                    type="email" 
+                    placeholder="E-mail da compra" 
+                    value={emailInput}
+                    onChange={e => setEmailInput(e.target.value)}
+                    className="flex-1 bg-[#f7f7f8] border border-[rgba(0,0,0,0.08)] rounded-[6px] px-[10px] py-[6px] outline-none text-[#0c0c0d]"
+                    style={{ fontSize: F.xs }}
+                  />
+                  <button 
+                    onClick={() => onRestore(emailInput)}
+                    className="bg-transparent border border-[rgba(0,0,0,0.08)] rounded-[6px] px-[12px] text-[#0c0c0d] font-semibold cursor-pointer hover:bg-[#f2f2f4]"
+                    style={{ fontSize: F.xs }}
+                  >
+                    Restaurar
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
 

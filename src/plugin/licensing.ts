@@ -5,8 +5,8 @@ export interface EstadoLicenca {
 
 const FREE_GENERATION_USED_KEY = "dt_boilerplate_free_generation_used";
 const USER_EMAIL_KEY = "dt_boilerplate_user_email";
-const SUPABASE_URL = "https://lyexuguaeuwdtjeqwmst.supabase.co";
-const SUPABASE_API_KEY = "sb_publishable_BJYVAnl9Arx7gEcHOXzHfA_Bj4iJXGO";
+const PREMIUM_STATUS_KEY = "dt_boilerplate_premium_status";
+const EDGE_FUNCTION_URL = "https://lyexuguaeuwdtjeqwmst.supabase.co/functions/v1/verify-license";
 
 type ClientStorage = {
   getAsync: (key: string) => Promise<unknown>;
@@ -15,34 +15,21 @@ type ClientStorage = {
 
 export async function verificarAssinaturaSupabase(userId?: string, email?: string): Promise<boolean> {
   try {
-    let query = `${SUPABASE_URL}/rest/v1/customers?select=subscription_status,lifetime&`;
-    
-    if (email) {
-        query += `email=eq.${encodeURIComponent(email)}`;
-    } else if (userId) {
-        query += `user_id=eq.${encodeURIComponent(userId)}`;
-    } else {
-        return false;
-    }
+    if (!email) return false;
 
-    const response = await fetch(query, {
+    const response = await fetch(EDGE_FUNCTION_URL, {
+      method: "POST",
       headers: {
-        "apikey": SUPABASE_API_KEY,
-        "Authorization": `Bearer ${SUPABASE_API_KEY}`,
         "Content-Type": "application/json",
       },
+      body: JSON.stringify({ email }),
     });
 
     if (!response.ok) return false;
 
     const data = await response.json();
     
-    if (Array.isArray(data) && data.length > 0) {
-      const sub = data[0];
-      return sub.subscription_status === "active" || sub.lifetime === true;
-    }
-
-    return false;
+    return data.premium === true;
   } catch (error) {
     return false;
   }
@@ -50,13 +37,18 @@ export async function verificarAssinaturaSupabase(userId?: string, email?: strin
 
 export async function obterEstadoLicenca(clientStorage: ClientStorage, userId?: string, emailForcado?: string): Promise<EstadoLicenca> {
   const geracaoGratuitaUtilizada = await clientStorage.getAsync(FREE_GENERATION_USED_KEY);
+  const storedPremium = await clientStorage.getAsync(PREMIUM_STATUS_KEY) as boolean | undefined;
   const storedEmail = await clientStorage.getAsync(USER_EMAIL_KEY) as string | undefined;
   
   const emailToCheck = emailForcado || storedEmail;
   
-  let premium = false;
-  if (userId || emailToCheck) {
+  let premium = storedPremium === true;
+  
+  if (!premium && emailToCheck) {
     premium = await verificarAssinaturaSupabase(userId, emailToCheck);
+    if (premium) {
+      await clientStorage.setAsync(PREMIUM_STATUS_KEY, true);
+    }
   }
 
   return {
