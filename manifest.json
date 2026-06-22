@@ -6,6 +6,6 @@
   "ui": "dist/index.html",
   "editorType": ["figma"],
   "networkAccess": {
-    "allowedDomains": ["lyexuguaeuwdtjeqwmst.supabase.co"]
+    "allowedDomains": ["https://lyexuguaeuwdtjeqwmst.supabase.co"]
   }
 }
