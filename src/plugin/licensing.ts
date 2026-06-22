@@ -4,57 +4,59 @@ export interface EstadoLicenca {
 }
 
 const FREE_GENERATION_USED_KEY = "dt_boilerplate_free_generation_used";
+const USER_EMAIL_KEY = "dt_boilerplate_user_email";
 const SUPABASE_URL = "https://lyexuguaeuwdtjeqwmst.supabase.co";
-const SUPABASE_API_KEY = "sb_publishable_BJYVAnl9Arx7gEcHOXzHfA_Bj4iJXGO"; // Replace with actual anon key
+const SUPABASE_API_KEY = "sb_publishable_BJYVAnl9Arx7gEcHOXzHfA_Bj4iJXGO";
 
 type ClientStorage = {
   getAsync: (key: string) => Promise<unknown>;
   setAsync: (key: string, value: unknown) => Promise<void>;
 };
 
-type FigmaUser = {
-  id: string;
-};
-
-async function verificarAssinaturaSupabase(userId: string): Promise<boolean> {
+export async function verificarAssinaturaSupabase(userId?: string, email?: string): Promise<boolean> {
   try {
-    const response = await fetch(
-      `${SUPABASE_URL}/rest/v1/customers?user_id=eq.${userId}&select=subscription_status`,
-      {
-        headers: {
-          "apikey": SUPABASE_API_KEY,
-          "Authorization": `Bearer ${SUPABASE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    if (!response.ok) {
-      console.error("Supabase API error:", response.statusText);
-      return false;
+    let query = `${SUPABASE_URL}/rest/v1/customers?select=subscription_status,lifetime&`;
+    
+    if (email) {
+        query += `email=eq.${encodeURIComponent(email)}`;
+    } else if (userId) {
+        query += `user_id=eq.${encodeURIComponent(userId)}`;
+    } else {
+        return false;
     }
+
+    const response = await fetch(query, {
+      headers: {
+        "apikey": SUPABASE_API_KEY,
+        "Authorization": `Bearer ${SUPABASE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) return false;
 
     const data = await response.json();
     
     if (Array.isArray(data) && data.length > 0) {
-      const subscriptionStatus = data[0].subscription_status;
-      return subscriptionStatus === "active" || subscriptionStatus === "trialing" || subscriptionStatus === "past_due";
+      const sub = data[0];
+      return sub.subscription_status === "active" || sub.lifetime === true;
     }
 
     return false;
   } catch (error) {
-    console.error("Error checking subscription:", error);
     return false;
   }
 }
 
-export async function obterEstadoLicenca(clientStorage: ClientStorage, userId?: string): Promise<EstadoLicenca> {
+export async function obterEstadoLicenca(clientStorage: ClientStorage, userId?: string, emailForcado?: string): Promise<EstadoLicenca> {
   const geracaoGratuitaUtilizada = await clientStorage.getAsync(FREE_GENERATION_USED_KEY);
+  const storedEmail = await clientStorage.getAsync(USER_EMAIL_KEY) as string | undefined;
+  
+  const emailToCheck = emailForcado || storedEmail;
   
   let premium = false;
-  
-  if (userId) {
-    premium = await verificarAssinaturaSupabase(userId);
+  if (userId || emailToCheck) {
+    premium = await verificarAssinaturaSupabase(userId, emailToCheck);
   }
 
   return {

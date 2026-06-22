@@ -1,40 +1,44 @@
 (() => {
   // src/plugin/licensing.ts
   var FREE_GENERATION_USED_KEY = "dt_boilerplate_free_generation_used";
+  var USER_EMAIL_KEY = "dt_boilerplate_user_email";
   var SUPABASE_URL = "https://lyexuguaeuwdtjeqwmst.supabase.co";
   var SUPABASE_API_KEY = "sb_publishable_BJYVAnl9Arx7gEcHOXzHfA_Bj4iJXGO";
-  async function verificarAssinaturaSupabase(userId) {
+  async function verificarAssinaturaSupabase(userId, email) {
     try {
-      const response = await fetch(
-        `${SUPABASE_URL}/rest/v1/customers?user_id=eq.${userId}&select=subscription_status`,
-        {
-          headers: {
-            "apikey": SUPABASE_API_KEY,
-            "Authorization": `Bearer ${SUPABASE_API_KEY}`,
-            "Content-Type": "application/json"
-          }
-        }
-      );
-      if (!response.ok) {
-        console.error("Supabase API error:", response.statusText);
+      let query = `${SUPABASE_URL}/rest/v1/customers?select=subscription_status,lifetime&`;
+      if (email) {
+        query += `email=eq.${encodeURIComponent(email)}`;
+      } else if (userId) {
+        query += `user_id=eq.${encodeURIComponent(userId)}`;
+      } else {
         return false;
       }
+      const response = await fetch(query, {
+        headers: {
+          "apikey": SUPABASE_API_KEY,
+          "Authorization": `Bearer ${SUPABASE_API_KEY}`,
+          "Content-Type": "application/json"
+        }
+      });
+      if (!response.ok) return false;
       const data = await response.json();
       if (Array.isArray(data) && data.length > 0) {
-        const subscriptionStatus = data[0].subscription_status;
-        return subscriptionStatus === "active" || subscriptionStatus === "trialing" || subscriptionStatus === "past_due";
+        const sub = data[0];
+        return sub.subscription_status === "active" || sub.lifetime === true;
       }
       return false;
     } catch (error) {
-      console.error("Error checking subscription:", error);
       return false;
     }
   }
-  async function obterEstadoLicenca(clientStorage, userId) {
+  async function obterEstadoLicenca(clientStorage, userId, emailForcado) {
     const geracaoGratuitaUtilizada = await clientStorage.getAsync(FREE_GENERATION_USED_KEY);
+    const storedEmail = await clientStorage.getAsync(USER_EMAIL_KEY);
+    const emailToCheck = emailForcado || storedEmail;
     let premium = false;
-    if (userId) {
-      premium = await verificarAssinaturaSupabase(userId);
+    if (userId || emailToCheck) {
+      premium = await verificarAssinaturaSupabase(userId, emailToCheck);
     }
     return {
       geracaoGratuitaUtilizada: geracaoGratuitaUtilizada === true,
@@ -55,15 +59,26 @@
     themeColors: true
   });
   figma.ui.onmessage = async (message) => {
-    var _a, _b;
+    var _a, _b, _c;
     if (message.type === "unlock-now") {
       const userId = (_a = figma.currentUser) == null ? void 0 : _a.id;
       figma.openExternal(`https://dt-boilerplate-lp.vercel.app/?user_id=${userId}`);
       return;
     }
+    if (message.type === "restore-purchase") {
+      const licenca = await obterEstadoLicenca(figma.clientStorage, (_b = figma.currentUser) == null ? void 0 : _b.id, message.email);
+      if (licenca.premium) {
+        await figma.clientStorage.setAsync("dt_boilerplate_user_email", message.email);
+        figma.ui.postMessage({ type: "purchase-restored" });
+        figma.notify("Licen\xE7a restaurada com sucesso!");
+      } else {
+        figma.notify("Nenhuma assinatura encontrada para este e-mail.", { error: true });
+      }
+      return;
+    }
     if (message.type !== "generate-variables") return;
     try {
-      const userId = (_b = figma.currentUser) == null ? void 0 : _b.id;
+      const userId = (_c = figma.currentUser) == null ? void 0 : _c.id;
       const licenca = await obterEstadoLicenca(figma.clientStorage, userId);
       if (!podeGerarDesignTokens(licenca)) {
         figma.ui.postMessage({ type: "unlock-required" });
@@ -91,7 +106,7 @@
       const name = getHierarchicalName(token);
       if (usedNames.has(name)) continue;
       usedNames.add(name);
-      const variable = figma.variables.createVariable(name, collection, variableType);
+      const variable = figma.variables.createVariable(name, collection.id, variableType);
       variable.setValueForMode(modeId, getVariableValue(token, variableType));
       created += 1;
     }

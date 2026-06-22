@@ -23,7 +23,12 @@ type UnlockMessage = {
   type: "unlock-now";
 };
 
-type PluginMessage = GenerateVariablesMessage | UnlockMessage;
+type RestoreMessage = { 
+  type: "restore-purchase"; 
+  email: string;
+};
+
+type PluginMessage = GenerateVariablesMessage | UnlockMessage | RestoreMessage;
 
 type VariableCollection = {
   id: string;
@@ -43,7 +48,8 @@ declare const figma: {
   };
   variables: {
     createVariableCollection: (name: string) => VariableCollection;
-    createVariable: (name: string, collection: VariableCollection, variableType: FigmaVariableType) => {
+    // CORREÇÃO: O segundo parâmetro da API nativa é a string do ID (collectionId), não o objeto.
+    createVariable: (name: string, collectionId: string, variableType: FigmaVariableType) => {
       setValueForMode: (modeId: string, value: unknown) => void;
     };
   };
@@ -66,6 +72,19 @@ figma.ui.onmessage = async (message) => {
   if (message.type === "unlock-now") {
     const userId = figma.currentUser?.id;
     figma.openExternal(`https://dt-boilerplate-lp.vercel.app/?user_id=${userId}`);
+    return;
+  }
+
+  // NOVA LÓGICA: Restauração de licença comprada via Landing Page
+  if (message.type === "restore-purchase") {
+    const licenca = await obterEstadoLicenca(figma.clientStorage, figma.currentUser?.id, message.email);
+    if (licenca.premium) {
+      await figma.clientStorage.setAsync("dt_boilerplate_user_email", message.email);
+      figma.ui.postMessage({ type: "purchase-restored" });
+      figma.notify("Licença restaurada com sucesso!");
+    } else {
+      figma.notify("Nenhuma assinatura encontrada para este e-mail.", { error: true });
+    }
     return;
   }
 
@@ -108,7 +127,8 @@ function createVariables(collection: VariableCollection, modeId: string, tokens:
     if (usedNames.has(name)) continue;
     usedNames.add(name);
 
-    const variable = figma.variables.createVariable(name, collection, variableType);
+    // CORREÇÃO: Utilização de collection.id em vez de passar a interface inteira
+    const variable = figma.variables.createVariable(name, collection.id, variableType);
     variable.setValueForMode(modeId, getVariableValue(token, variableType));
     created += 1;
   }
