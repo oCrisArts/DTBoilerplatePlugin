@@ -724,12 +724,22 @@ function UnlockModal({
             Unlock unlimited token generation and future updates.
           </p>
 
-          <div className="mt-[16px] rounded-[6px] bg-[#f7f7f8] border border-[rgba(0,0,0,0.08)] px-[14px] py-[12px]">
-            <div className="text-[#0c0c0d] font-semibold" style={{ fontSize: F.sm }}>
-              $29
+          <div className="mt-[16px] flex flex-col gap-[8px]">
+            <div className="rounded-[6px] bg-[#f7f7f8] border border-[rgba(0,0,0,0.08)] px-[14px] py-[12px]">
+              <div className="text-[#0c0c0d] font-semibold" style={{ fontSize: F.sm }}>
+                US$ 5,99
+              </div>
+              <div className="text-[#6e6e80]" style={{ fontSize: F.xs }}>
+                Mensal
+              </div>
             </div>
-            <div className="text-[#6e6e80]" style={{ fontSize: F.xs }}>
-              Lifetime License
+            <div className="rounded-[6px] bg-[#f7f7f8] border border-[rgba(0,0,0,0.08)] px-[14px] py-[12px]">
+              <div className="text-[#0c0c0d] font-semibold" style={{ fontSize: F.sm }}>
+                US$ 49,90
+              </div>
+              <div className="text-[#6e6e80]" style={{ fontSize: F.xs }}>
+                Lifetime
+              </div>
             </div>
           </div>
 

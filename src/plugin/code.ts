@@ -49,6 +49,9 @@ declare const figma: {
   };
   openExternal: (url: string) => void;
   notify: (message: string, options?: { error?: boolean; timeout?: number }) => void;
+  currentUser?: {
+    id: string;
+  };
 };
 
 declare const __html__: string;
@@ -61,14 +64,16 @@ figma.showUI(__html__, {
 
 figma.ui.onmessage = async (message) => {
   if (message.type === "unlock-now") {
-    figma.openExternal("https://dt-boilerplate.figma.site/");
+    const userId = figma.currentUser?.id;
+    figma.openExternal(`https://dt-boilerplate.figma.site/?user_id=${userId}`);
     return;
   }
 
   if (message.type !== "generate-variables") return;
 
   try {
-    const licenca = await obterEstadoLicenca(figma.clientStorage);
+    const userId = figma.currentUser?.id;
+    const licenca = await obterEstadoLicenca(figma.clientStorage, userId);
 
     if (!podeGerarDesignTokens(licenca)) {
       figma.ui.postMessage({ type: "unlock-required" });

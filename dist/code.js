@@ -1,14 +1,47 @@
 (() => {
   // src/plugin/licensing.ts
-  var FREE_GENERATION_USED_KEY = "ds_boilerplate_free_generation_used";
-  async function obterEstadoLicenca(clientStorage) {
+  var FREE_GENERATION_USED_KEY = "dt_boilerplate_free_generation_used";
+  var SUPABASE_URL = "https://lyexuguaeuwdtjeqwmst.supabase.co";
+  var SUPABASE_API_KEY = "sb_publishable_BJYVAnl9Arx7gEcHOXzHfA_Bj4iJXGO";
+  async function verificarAssinaturaSupabase(userId) {
+    try {
+      const response = await fetch(
+        `${SUPABASE_URL}/rest/v1/customers?user_id=eq.${userId}&select=subscription_status`,
+        {
+          headers: {
+            "apikey": SUPABASE_API_KEY,
+            "Authorization": `Bearer ${SUPABASE_API_KEY}`,
+            "Content-Type": "application/json"
+          }
+        }
+      );
+      if (!response.ok) {
+        console.error("Supabase API error:", response.statusText);
+        return false;
+      }
+      const data = await response.json();
+      if (Array.isArray(data) && data.length > 0) {
+        const subscriptionStatus = data[0].subscription_status;
+        return subscriptionStatus === "active" || subscriptionStatus === "trialing" || subscriptionStatus === "past_due";
+      }
+      return false;
+    } catch (error) {
+      console.error("Error checking subscription:", error);
+      return false;
+    }
+  }
+  async function obterEstadoLicenca(clientStorage, userId) {
     const geracaoGratuitaUtilizada = await clientStorage.getAsync(FREE_GENERATION_USED_KEY);
+    let premium = false;
+    if (userId) {
+      premium = await verificarAssinaturaSupabase(userId);
+    }
     return {
       geracaoGratuitaUtilizada: geracaoGratuitaUtilizada === true,
-      premium: false
+      premium
     };
   }
-  function podeGerarDesignSystem(licenca) {
+  function podeGerarDesignTokens(licenca) {
     return licenca.premium || !licenca.geracaoGratuitaUtilizada;
   }
   async function marcarGeracaoGratuitaUtilizada(clientStorage) {
@@ -22,24 +55,27 @@
     themeColors: true
   });
   figma.ui.onmessage = async (message) => {
+    var _a, _b;
     if (message.type === "unlock-now") {
-      figma.openExternal("https://ds-boilerplate.figma.site/");
+      const userId = (_a = figma.currentUser) == null ? void 0 : _a.id;
+      figma.openExternal(`https://dt-boilerplate.figma.site/?user_id=${userId}`);
       return;
     }
     if (message.type !== "generate-variables") return;
     try {
-      const licenca = await obterEstadoLicenca(figma.clientStorage);
-      if (!podeGerarDesignSystem(licenca)) {
+      const userId = (_b = figma.currentUser) == null ? void 0 : _b.id;
+      const licenca = await obterEstadoLicenca(figma.clientStorage, userId);
+      if (!podeGerarDesignTokens(licenca)) {
         figma.ui.postMessage({ type: "unlock-required" });
         return;
       }
-      const collection = figma.variables.createVariableCollection("DS Boilerplate");
+      const collection = figma.variables.createVariableCollection("DT Boilerplate");
       const modeId = collection.modes[0].modeId;
       const created = createVariables(collection, modeId, message.tokens);
       if (!licenca.premium) {
         await marcarGeracaoGratuitaUtilizada(figma.clientStorage);
       }
-      figma.notify(`DS Boilerplate created ${created} variables.`);
+      figma.notify(`DT Boilerplate created ${created} variables.`);
       figma.ui.postMessage({ type: "variables-generated", created });
     } catch (error) {
       const detail = error instanceof Error ? error.message : "Unknown error";
