@@ -65,7 +65,7 @@ figma.showUI(__html__, {
 figma.ui.onmessage = async (message) => {
   if (message.type === "unlock-now") {
     const userId = figma.currentUser?.id;
-    figma.openExternal(`https://dt-boilerplate.figma.site/?user_id=${userId}`);
+    figma.openExternal(`https://dt-boilerplate-lp.vercel.app/?user_id=${userId}`);
     return;
   }
 

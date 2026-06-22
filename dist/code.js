@@ -58,7 +58,7 @@
     var _a, _b;
     if (message.type === "unlock-now") {
       const userId = (_a = figma.currentUser) == null ? void 0 : _a.id;
-      figma.openExternal(`https://dt-boilerplate.figma.site/?user_id=${userId}`);
+      figma.openExternal(`https://dt-boilerplate-lp.vercel.app/?user_id=${userId}`);
       return;
     }
     if (message.type !== "generate-variables") return;
