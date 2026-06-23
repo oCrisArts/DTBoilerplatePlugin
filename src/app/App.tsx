@@ -505,78 +505,62 @@ function PluginFooter({ count, onGenerate }: { count: number; onGenerate: () => 
 
 function UnlockModal({
   onUnlock,
-  onCancel,
-  onRestore
+  onCancel
 }: {
-  onUnlock: () => void;
+  onUnlock: (email: string) => void;
   onCancel: () => void;
-  onRestore: (email: string) => void;
 }) {
-  const [emailInput, setEmailInput] = useState("");
-  const [showRestoreSection, setShowRestoreSection] = useState(false);
+  const [email, setEmail] = useState("");
+
+  const handleSubmit = () => {
+    if (!email.trim()) return;
+    onUnlock(email.trim());
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleSubmit();
+    }
+  };
 
   return (
     <div className="absolute inset-0 z-20 flex items-center justify-center bg-[rgba(12,12,13,0.45)] px-[24px]">
       <div className="bg-white rounded-[8px] shadow-[0_16px_40px_rgba(0,0,0,0.2)] border border-[rgba(0,0,0,0.08)] w-full max-w-[340px] overflow-hidden" style={{ fontFamily: "'Source Sans 3', sans-serif" }}>
         <div className="px-[20px] pt-[20px] pb-[12px]">
           <h2 className="m-0 text-[#0c0c0d] font-semibold" style={{ fontSize: F.sm }}>Unlock DT Boilerplate</h2>
-          <p className="mt-[10px] mb-0 text-[#6e6e80]" style={{ fontSize: F.xs, lineHeight: 1.45 }}>Your free token generation has been used.</p>
-          <p className="mt-[8px] mb-0 text-[#6e6e80]" style={{ fontSize: F.xs, lineHeight: 1.45 }}>Unlock unlimited token generation and future updates.</p>
+          <p className="mt-[10px] mb-0 text-[#6e6e80]" style={{ fontSize: F.xs, lineHeight: 1.45 }}>Generate complete Color, Typography, and Layout foundations in seconds directly in Figma.</p>
 
-          <div className="mt-[16px] flex flex-col gap-[8px]">
-            <div className="rounded-[6px] bg-[#f7f7f8] border border-[rgba(0,0,0,0.08)] px-[14px] py-[12px]">
-              <div className="text-[#0c0c0d] font-semibold" style={{ fontSize: F.sm }}>US$ 5,99</div>
-              <div className="text-[#6e6e80]" style={{ fontSize: F.xs }}>Mensal</div>
-            </div>
-            <div className="rounded-[6px] bg-[#f7f7f8] border border-[rgba(0,0,0,0.08)] px-[14px] py-[12px]">
-              <div className="text-[#0c0c0d] font-semibold" style={{ fontSize: F.sm }}>US$ 49,90</div>
-              <div className="text-[#6e6e80]" style={{ fontSize: F.xs }}>Lifetime</div>
-            </div>
+          <div className="mt-[20px]">
+            <label className="block text-[#0c0c0d] font-medium mb-[8px]" style={{ fontSize: F.xs }}>Email</label>
+            <input
+              type="email"
+              placeholder="Enter your email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className="w-full bg-[#f7f7f8] border border-[rgba(0,0,0,0.08)] rounded-[6px] px-[12px] py-[10px] outline-none text-[#0c0c0d] placeholder:text-[rgba(110,110,128,0.5)]"
+              style={{ fontFamily: "'Source Sans 3', sans-serif", fontSize: F.xs }}
+            />
           </div>
-          <div className="mt-[16px] flex flex-col gap-[6px] text-[#0c0c0d]" style={{ fontSize: F.xs }}>
-            <span>✓ Unlimited Token Generation</span>
-            <span>✓ Future Updates</span>
-            <span>✓ New Features</span>
-            <span>✓ Priority Support</span>
-          </div>          
         </div>
 
         <div className="border-t border-[rgba(0,0,0,0.08)] p-[12px] flex flex-col gap-[8px]">
-          <button onClick={onUnlock} className="bg-[#0c0c0d] rounded-[8px] w-full flex items-center justify-center cursor-pointer border-0 hover:bg-[#1a1a1b] transition-colors text-[#fafafa] font-semibold" style={{ minHeight: H.btn, fontSize: F.sm }}>Unlock Now</button>
-          <button onClick={onCancel} className="bg-transparent rounded-[8px] w-full flex items-center justify-center cursor-pointer border border-[rgba(0,0,0,0.08)] text-[#0c0c0d]" style={{ minHeight: H.btn, fontSize: F.sm }}>Cancel</button>
+          <button 
+            onClick={handleSubmit} 
+            disabled={!email.trim()}
+            className="bg-[#0c0c0d] rounded-[8px] w-full flex items-center justify-center cursor-pointer border-0 hover:bg-[#1a1a1b] transition-colors text-[#fafafa] font-semibold disabled:opacity-50 disabled:cursor-not-allowed" 
+            style={{ minHeight: H.btn, fontSize: F.sm }}
+          >
+            Unlock Now
+          </button>
+          <button 
+            onClick={onCancel} 
+            className="bg-transparent rounded-[8px] w-full flex items-center justify-center cursor-pointer border border-[rgba(0,0,0,0.08)] text-[#0c0c0d]" 
+            style={{ minHeight: H.btn, fontSize: F.sm }}
+          >
+            Cancel
+          </button>
         </div>
-        <div className="border-t border-[rgba(0,0,0,0.08)] p-[12px] mt-[16px] border-t border-[rgba(0,0,0,0.08)] pt-[16px]">
-            {!showRestoreSection ? (
-              <button
-                onClick={() => setShowRestoreSection(true)}
-                className="w-full bg-transparent border border-[rgba(0,0,0,0.08)] rounded-[8px] px-[12px] py-[8px] text-[#0c0c0d] font-semibold cursor-pointer hover:bg-[#f2f2f4]"
-                style={{ minHeight: H.btn, fontSize: F.sm }}
-              >
-                Já sou assinante
-              </button>
-            ) : (
-              <div>
-                <p className="m-0 text-[#0c0c0d] font-semibold mb-[8px]" style={{ fontSize: F.xs }}>Já comprou pela Landing Page?</p>
-                <div className="flex gap-[8px]">
-                  <input 
-                    type="email" 
-                    placeholder="E-mail da compra" 
-                    value={emailInput}
-                    onChange={e => setEmailInput(e.target.value)}
-                    className="flex-1 bg-[#f7f7f8] border border-[rgba(0,0,0,0.08)] rounded-[6px] px-[10px] py-[6px] outline-none text-[#0c0c0d]"
-                    style={{ fontSize: F.xs }}
-                  />
-                  <button 
-                    onClick={() => onRestore(emailInput)}
-                    className="bg-transparent border border-[rgba(0,0,0,0.08)] rounded-[8px] px-[12px] text-[#0c0c0d] font-semibold cursor-pointer hover:bg-[#f2f2f4]"
-                    style={{ minHeight: H.btn, fontSize: F.sm }}
-                  >
-                    Restaurar
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
       </div>
     </div>
   );
@@ -628,20 +612,16 @@ export default function App() {
     );
   };
 
-  const handleUnlockNow = () => {
+  const handleUnlock = (email: string) => {
     parent.postMessage(
       {
         pluginMessage: {
-          type: "unlock-now",
+          type: "process-unlock",
+          email,
         },
       },
       "*"
     );
-  };
-
-  const handleRestore = (email: string) => {
-    if (!email) return;
-    parent.postMessage({ pluginMessage: { type: "restore-purchase", email } }, "*");
   };
 
   useEffect(() => {
@@ -652,6 +632,9 @@ export default function App() {
         setShowUnlockModal(true);
       }
       if (message?.type === "purchase-restored") {
+        setShowUnlockModal(false);
+      }
+      if (message?.type === "redirected-to-checkout") {
         setShowUnlockModal(false);
       }
     };
@@ -682,9 +665,8 @@ export default function App() {
       
       {showUnlockModal && (
         <UnlockModal
-          onUnlock={handleUnlockNow}
+          onUnlock={handleUnlock}
           onCancel={() => setShowUnlockModal(false)}
-          onRestore={handleRestore}
         />
       )}
     </div>

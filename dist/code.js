@@ -52,23 +52,15 @@
     themeColors: true
   });
   figma.ui.onmessage = async (message) => {
-    if (message.type === "unlock-now") {
-      let url = "https://dt-boilerplate-lp.vercel.app/";
-      const user = figma.currentUser;
-      if (user && user.id) {
-        url += `?user_id=${encodeURIComponent(user.id)}`;
-      }
-      figma.openExternal(url);
-      return;
-    }
-    if (message.type === "restore-purchase") {
+    if (message.type === "process-unlock") {
       const licenca = await obterEstadoLicenca(figma.clientStorage, void 0, message.email);
       if (licenca.premium) {
         await figma.clientStorage.setAsync("dt_boilerplate_user_email", message.email);
         figma.ui.postMessage({ type: "purchase-restored" });
-        figma.notify("Licen\xE7a restaurada com sucesso!");
+        figma.notify("License activated successfully!");
       } else {
-        figma.notify("Nenhuma assinatura ativa encontrada para este e-mail.", { error: true });
+        figma.openExternal("https://dt-boilerplate-lp.vercel.app/?email=" + encodeURIComponent(message.email));
+        figma.ui.postMessage({ type: "redirected-to-checkout" });
       }
       return;
     }
