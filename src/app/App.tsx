@@ -507,7 +507,7 @@ function UnlockModal({
   onUnlock,
   onCancel
 }: {
-  onUnlock: (email: string) => void;
+  onUnlock: (email: string, plan: string) => void;
   onCancel: () => void;
 }) {
   const [email, setEmail] = useState("");
@@ -515,7 +515,7 @@ function UnlockModal({
 
   const handleSubmit = () => {
     if (!email.trim()) return;
-    onUnlock(email.trim());
+    onUnlock(email.trim(), selectedPlan);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -599,7 +599,7 @@ function UnlockModal({
 
         {/* Footer */}
         <div className="space-y-3">
-          <div>
+          <div className="space-y-3">
             <label className="block text-[#0c0c0d] font-medium mb-2" style={{ fontSize: F.xs }}>Email</label>
             <input
               type="email"
@@ -671,12 +671,13 @@ export default function App() {
     );
   };
 
-  const handleUnlock = (email: string) => {
+  const handleUnlock = (email: string, plan: string) => {
     parent.postMessage(
       {
         pluginMessage: {
           type: "process-unlock",
           email,
+          plan
         },
       },
       "*"

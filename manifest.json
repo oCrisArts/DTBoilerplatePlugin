@@ -1,10 +1,11 @@
 {
   "name": "DT Boilerplate",
-  "id": "dt-boilerplate-plugin",
+  "id": "1651310914400769393",
   "api": "1.0.0",
   "main": "dist/code.js",
   "ui": "dist/index.html",
   "editorType": ["figma"],
+  "documentAccess": "dynamic-page",
   "permissions": [
     "currentuser"
   ],

@@ -22,6 +22,7 @@ type GenerateVariablesMessage = {
 type ProcessUnlockMessage = {
   type: "process-unlock";
   email: string;
+  plan: string; // Adicionado
 };
 
 type PluginMessage = GenerateVariablesMessage | ProcessUnlockMessage;
