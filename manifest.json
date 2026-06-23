@@ -5,6 +5,9 @@
   "main": "dist/code.js",
   "ui": "dist/index.html",
   "editorType": ["figma"],
+  "permissions": [
+    "currentuser"
+  ],
   "networkAccess": {
     "allowedDomains": ["https://lyexuguaeuwdtjeqwmst.supabase.co"]
   }
