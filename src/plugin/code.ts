@@ -70,7 +70,8 @@ figma.ui.onmessage = async (message) => {
       figma.ui.postMessage({ type: "purchase-restored" });
       figma.notify("License activated successfully!");
     } else {
-      figma.openExternal('https://dt-boilerplate-lp.vercel.app/?email=' + encodeURIComponent(message.email));
+      //figma.openExternal('https://dt-boilerplate-lp.vercel.app/?email=' + encodeURIComponent(message.email));
+      figma.openExternal(`https://dt-boilerplate-lp.vercel.app/?email=${encodeURIComponent(message.email)}&plan=${encodeURIComponent(message.plan)}`);
       figma.ui.postMessage({ type: "redirected-to-checkout" });
     }
     return;
