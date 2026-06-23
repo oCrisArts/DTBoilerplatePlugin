@@ -37,6 +37,7 @@ type VariableCollection = {
 };
 
 declare const figma: {
+  currentUser: any;
   showUI: (html: string, options?: { width?: number; height?: number; themeColors?: boolean }) => void;
   ui: {
     onmessage: (message: PluginMessage) => void;
@@ -67,7 +68,14 @@ figma.showUI(__html__, {
 
 figma.ui.onmessage = async (message) => {
   if (message.type === "unlock-now") {
-    figma.openExternal("https://dt-boilerplate-lp.vercel.app/");
+    let url = "https://dt-boilerplate-lp.vercel.app/";
+    const user = figma.currentUser;
+    
+    if (user && user.id) {
+      url += `?user_id=${encodeURIComponent(user.id)}`;
+    }
+    
+    figma.openExternal(url);
     return;
   }
 
