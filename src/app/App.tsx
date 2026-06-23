@@ -533,25 +533,29 @@ function UnlockModal({
               <div className="text-[#6e6e80]" style={{ fontSize: F.xs }}>Lifetime</div>
             </div>
           </div>
-
           <div className="mt-[16px] flex flex-col gap-[6px] text-[#0c0c0d]" style={{ fontSize: F.xs }}>
             <span>✓ Unlimited Token Generation</span>
             <span>✓ Future Updates</span>
             <span>✓ New Features</span>
             <span>✓ Priority Support</span>
-          </div>
+          </div>          
+        </div>
 
-          <div className="mt-[16px] border-t border-[rgba(0,0,0,0.08)] pt-[16px]">
+        <div className="border-t border-[rgba(0,0,0,0.08)] p-[12px] flex flex-col gap-[8px]">
+          <button onClick={onUnlock} className="bg-[#0c0c0d] rounded-[8px] w-full flex items-center justify-center cursor-pointer border-0 hover:bg-[#1a1a1b] transition-colors text-[#fafafa] font-semibold" style={{ minHeight: H.btn, fontSize: F.sm }}>Unlock Now</button>
+          <button onClick={onCancel} className="bg-transparent rounded-[8px] w-full flex items-center justify-center cursor-pointer border border-[rgba(0,0,0,0.08)] text-[#0c0c0d]" style={{ minHeight: H.btn, fontSize: F.sm }}>Cancel</button>
+        </div>
+        <div className="border-t border-[rgba(0,0,0,0.08)] p-[12px] mt-[16px] border-t border-[rgba(0,0,0,0.08)] pt-[16px]">
             {!showRestoreSection ? (
               <button
                 onClick={() => setShowRestoreSection(true)}
-                className="w-full bg-transparent border border-[rgba(0,0,0,0.08)] rounded-[6px] px-[12px] py-[8px] text-[#0c0c0d] font-semibold cursor-pointer hover:bg-[#f2f2f4]"
-                style={{ fontSize: F.xs }}
+                className="w-full bg-transparent border border-[rgba(0,0,0,0.08)] rounded-[8px] px-[12px] py-[8px] text-[#0c0c0d] font-semibold cursor-pointer hover:bg-[#f2f2f4]"
+                style={{ minHeight: H.btn, fontSize: F.sm }}
               >
                 Já sou assinante
               </button>
             ) : (
-              <>
+              <div>
                 <p className="m-0 text-[#0c0c0d] font-semibold mb-[8px]" style={{ fontSize: F.xs }}>Já comprou pela Landing Page?</p>
                 <div className="flex gap-[8px]">
                   <input 
@@ -564,21 +568,15 @@ function UnlockModal({
                   />
                   <button 
                     onClick={() => onRestore(emailInput)}
-                    className="bg-transparent border border-[rgba(0,0,0,0.08)] rounded-[6px] px-[12px] text-[#0c0c0d] font-semibold cursor-pointer hover:bg-[#f2f2f4]"
-                    style={{ fontSize: F.xs }}
+                    className="bg-transparent border border-[rgba(0,0,0,0.08)] rounded-[8px] px-[12px] text-[#0c0c0d] font-semibold cursor-pointer hover:bg-[#f2f2f4]"
+                    style={{ minHeight: H.btn, fontSize: F.sm }}
                   >
                     Restaurar
                   </button>
                 </div>
-              </>
+              </div>
             )}
           </div>
-        </div>
-
-        <div className="border-t border-[rgba(0,0,0,0.08)] p-[12px] flex flex-col gap-[8px]">
-          <button onClick={onUnlock} className="bg-[#0c0c0d] rounded-[8px] w-full flex items-center justify-center cursor-pointer border-0 hover:bg-[#1a1a1b] transition-colors text-[#fafafa] font-semibold" style={{ minHeight: H.btn, fontSize: F.sm }}>Unlock Now</button>
-          <button onClick={onCancel} className="bg-transparent rounded-[8px] w-full flex items-center justify-center cursor-pointer border border-[rgba(0,0,0,0.08)] text-[#0c0c0d]" style={{ minHeight: H.btn, fontSize: F.sm }}>Cancel</button>
-        </div>
       </div>
     </div>
   );
