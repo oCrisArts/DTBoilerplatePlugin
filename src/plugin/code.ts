@@ -4,8 +4,6 @@ import {
   podeGerarDesignTokens,
 } from "./licensing";
 
-type FigmaVariableType = "COLOR" | "FLOAT" | "STRING";
-
 type TokenPayload = {
   module: string;
   submodule: string;
@@ -22,15 +20,23 @@ type GenerateVariablesMessage = {
 type ProcessUnlockMessage = {
   type: "process-unlock";
   email: string;
-  plan: string; // Adicionado
+  plan: string;
 };
 
 type PluginMessage = GenerateVariablesMessage | ProcessUnlockMessage;
+
+type VariableType = "COLOR" | "FLOAT" | "STRING";
 
 type VariableCollection = {
   id: string;
   name: string;
   modes: Array<{ modeId: string; name: string }>;
+};
+
+type Variable = {
+  name: string;
+  variableCollectionId: string;
+  setValueForMode: (modeId: string, value: unknown) => void;
 };
 
 declare const figma: {
@@ -45,10 +51,9 @@ declare const figma: {
   };
   variables: {
     createVariableCollection: (name: string) => VariableCollection;
-    // CORREÇÃO: O segundo parâmetro da API nativa é a string do ID (collectionId), não o objeto.
-    createVariable: (name: string, collectionId: string, variableType: FigmaVariableType) => {
-      setValueForMode: (modeId: string, value: unknown) => void;
-    };
+    createVariable: (name: string, collection: VariableCollection, variableType: VariableType) => Variable;
+    getLocalVariablesAsync: () => Promise<Variable[]>;
+    getLocalVariableCollectionsAsync: () => Promise<VariableCollection[]>;
   };
   openExternal: (url: string) => void;
   notify: (message: string, options?: { error?: boolean; timeout?: number }) => void;
@@ -62,7 +67,7 @@ figma.showUI(__html__, {
   themeColors: true,
 });
 
-figma.ui.onmessage = async (message) => {
+figma.ui.onmessage = async (message: PluginMessage) => {
   if (message.type === "process-unlock") {
     const licenca = await obterEstadoLicenca(figma.clientStorage, undefined, message.email);
     
@@ -88,44 +93,108 @@ figma.ui.onmessage = async (message) => {
       return;
     }
 
-    const collection = figma.variables.createVariableCollection("DT Boilerplate");
-    const modeId = collection.modes[0].modeId;
-    const created = createVariables(collection, modeId, message.tokens);
+    const result = await generateVariables(message.tokens);
 
     if (!licenca.premium) {
       await marcarGeracaoGratuitaUtilizada(figma.clientStorage);
     }
 
-    figma.notify(`DT Boilerplate created ${created} variables.`);
-    figma.ui.postMessage({ type: "variables-generated", created });
+    figma.notify(`DT Boilerplate ${result.action} ${result.count} variables.`);
+    figma.ui.postMessage({ type: "variables-generated", ...result });
   } catch (error) {
     const detail = error instanceof Error ? error.message : "Unknown error";
+    console.error("Error generating variables:", error);
     figma.notify(`Unable to create variables: ${detail}`, { error: true, timeout: 6000 });
     figma.ui.postMessage({ type: "variables-generation-failed", error: detail });
   }
 };
 
-function createVariables(collection: VariableCollection, modeId: string, tokens: TokenPayload[]) {
-  let created = 0;
-  const usedNames = new Set<string>();
+async function generateVariables(tokens: TokenPayload[]) {
+  try {
+    // Step 1: Find or create the collection
+    const collection = await findOrCreateCollection("DT Boilerplate");
+    console.log("[DT Boilerplate] Collection:", collection.name, "ID:", collection.id);
 
-  for (const token of tokens) {
-    const variableType = getVariableType(token);
-    const name = getHierarchicalName(token);
+    const modeId = collection.modes[0].modeId;
+    
+    // Step 2: Get existing variables to avoid duplicates
+    const existingVariables = await figma.variables.getLocalVariablesAsync();
+    const variablesInCollection = existingVariables.filter(
+      (v: Variable) => v.variableCollectionId === collection.id
+    );
+    console.log("[DT Boilerplate] Existing variables in collection:", variablesInCollection.length);
 
-    if (usedNames.has(name)) continue;
-    usedNames.add(name);
+    let created = 0;
+    let updated = 0;
+    const usedNames = new Set<string>();
 
-    // CORREÇÃO: Utilização de collection.id em vez de passar a interface inteira
-    const variable = figma.variables.createVariable(name, collection.id, variableType);
-    variable.setValueForMode(modeId, getVariableValue(token, variableType));
-    created += 1;
+    for (const token of tokens) {
+      const variableType = getVariableType(token);
+      const name = getHierarchicalName(token);
+
+      if (usedNames.has(name)) continue;
+      usedNames.add(name);
+
+      // Check if variable already exists
+      const existingVar = variablesInCollection.find((v: Variable) => v.name === name);
+
+      if (existingVar) {
+        // Update existing variable
+        try {
+          existingVar.setValueForMode(modeId, getVariableValue(token, variableType));
+          updated += 1;
+          console.log(`[DT Boilerplate] Updated variable: ${name}`);
+        } catch (error) {
+          console.error(`[DT Boilerplate] Failed to update variable ${name}:`, error);
+          figma.notify(`Failed to update variable ${name}`, { error: true });
+        }
+      } else {
+        // Create new variable
+        try {
+          const variable = figma.variables.createVariable(name, collection, variableType);
+          variable.setValueForMode(modeId, getVariableValue(token, variableType));
+          created += 1;
+          console.log(`[DT Boilerplate] Created variable: ${name}`);
+        } catch (error) {
+          console.error(`[DT Boilerplate] Failed to create variable ${name}:`, error);
+          figma.notify(`Failed to create variable ${name}`, { error: true });
+        }
+      }
+    }
+
+    return {
+      action: created > 0 && updated > 0 ? "created and updated" : created > 0 ? "created" : "updated",
+      count: created + updated,
+      created,
+      updated
+    };
+  } catch (error) {
+    console.error("[DT Boilerplate] Error in generateVariables:", error);
+    throw error;
   }
-
-  return created;
 }
 
-function getVariableType(token: TokenPayload): FigmaVariableType {
+async function findOrCreateCollection(collectionName: string): Promise<VariableCollection> {
+  try {
+    const collections = await figma.variables.getLocalVariableCollectionsAsync();
+    console.log("[DT Boilerplate] Existing collections:", collections.map((c: VariableCollection) => c.name));
+    
+    const existing = collections.find((c: VariableCollection) => c.name === collectionName);
+    
+    if (existing) {
+      console.log(`[DT Boilerplate] Reusing existing collection: ${collectionName}`);
+      return existing;
+    }
+    
+    console.log(`[DT Boilerplate] Creating new collection: ${collectionName}`);
+    return figma.variables.createVariableCollection(collectionName);
+  } catch (error) {
+    console.error("[DT Boilerplate] Error in findOrCreateCollection:", error);
+    throw new Error(`Failed to find or create collection: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+function getVariableType(token: TokenPayload): VariableType {
   if (token.type === "color") return "COLOR";
   if (token.type === "number") return "FLOAT";
 
@@ -133,7 +202,7 @@ function getVariableType(token: TokenPayload): FigmaVariableType {
   return numeric === null ? "STRING" : "FLOAT";
 }
 
-function getVariableValue(token: TokenPayload, variableType: FigmaVariableType) {
+function getVariableValue(token: TokenPayload, variableType: VariableType) {
   if (variableType === "COLOR") return parseColor(token.value);
   if (variableType === "FLOAT") return parseCssNumber(token.value) ?? 0;
   return token.value;
