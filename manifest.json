@@ -10,6 +10,11 @@
     "currentuser"
   ],
   "networkAccess": {
-    "allowedDomains": ["https://lyexuguaeuwdtjeqwmst.supabase.co"]
+    "allowedDomains": [
+      "https://lyexuguaeuwdtjeqwmst.supabase.co",
+      "https://fonts.googleapis.com",
+      "https://dt-boilerplate-lp.vercel.app/",
+      "https://fonts.gstatic.com"
+    ]
   }
 }
