@@ -170,18 +170,20 @@
     }
   }
   function getVariableType(token) {
-    if (token.type === "color") return "COLOR";
-    if (token.type === "number") return "FLOAT";
+    if (token.type) return token.type;
+    if (typeof token.value === "number") return "FLOAT";
+    if (typeof token.value === "object") return "COLOR";
     const numeric = parseCssNumber(token.value);
     return numeric === null ? "STRING" : "FLOAT";
   }
   function getVariableValue(token, variableType) {
     var _a;
-    if (variableType === "COLOR") return parseColor(token.value);
-    if (variableType === "FLOAT") return (_a = parseCssNumber(token.value)) != null ? _a : 0;
+    if (variableType === "COLOR") return typeof token.value === "string" ? parseColor(token.value) : token.value;
+    if (variableType === "FLOAT") return typeof token.value === "number" ? token.value : (_a = parseCssNumber(token.value)) != null ? _a : 0;
     return token.value;
   }
   function getHierarchicalName(token) {
+    if (token.figmaName) return token.figmaName;
     const moduleName = toTitle(token.module);
     const submoduleName = toTitle(token.submodule);
     const tokenName = getTokenName(token);
@@ -205,6 +207,8 @@
     return value.trim().replace(/\s+/g, "-").replace(/\//g, "-");
   }
   function parseCssNumber(value) {
+    if (typeof value === "number") return value;
+    if (typeof value !== "string") return null;
     const match = value.trim().match(/^-?\d+(\.\d+)?/);
     return match ? Number(match[0]) : null;
   }

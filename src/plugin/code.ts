@@ -5,11 +5,13 @@ import {
 } from "./licensing";
 
 type TokenPayload = {
+  id: string;
   module: string;
   submodule: string;
   name: string;
-  value: string;
-  type: "color" | "text" | "number";
+  figmaName: string;
+  value: string | number | { r: number; g: number; b: number; a: number };
+  type: VariableType;
 };
 
 type GenerateVariablesMessage = {
@@ -195,20 +197,23 @@ async function findOrCreateCollection(collectionName: string): Promise<VariableC
 }
 
 function getVariableType(token: TokenPayload): VariableType {
-  if (token.type === "color") return "COLOR";
-  if (token.type === "number") return "FLOAT";
+  if (token.type) return token.type;
+  if (typeof token.value === "number") return "FLOAT";
+  if (typeof token.value === "object") return "COLOR";
 
   const numeric = parseCssNumber(token.value);
   return numeric === null ? "STRING" : "FLOAT";
 }
 
 function getVariableValue(token: TokenPayload, variableType: VariableType) {
-  if (variableType === "COLOR") return parseColor(token.value);
-  if (variableType === "FLOAT") return parseCssNumber(token.value) ?? 0;
+  if (variableType === "COLOR") return typeof token.value === "string" ? parseColor(token.value) : token.value;
+  if (variableType === "FLOAT") return typeof token.value === "number" ? token.value : parseCssNumber(token.value) ?? 0;
   return token.value;
 }
 
 function getHierarchicalName(token: TokenPayload) {
+  if (token.figmaName) return token.figmaName;
+
   const moduleName = toTitle(token.module);
   const submoduleName = toTitle(token.submodule);
   const tokenName = getTokenName(token);
@@ -241,7 +246,10 @@ function sanitizeName(value: string) {
   return value.trim().replace(/\s+/g, "-").replace(/\//g, "-");
 }
 
-function parseCssNumber(value: string) {
+function parseCssNumber(value: unknown) {
+  if (typeof value === "number") return value;
+  if (typeof value !== "string") return null;
+
   const match = value.trim().match(/^-?\d+(\.\d+)?/);
   return match ? Number(match[0]) : null;
 }

@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "build": "vite build && node scripts/inline-figma-ui.mjs && esbuild src/plugin/code.ts --bundle --format=iife --target=es2017 --outfile=dist/code.js",
+    "build": "node scripts/sync-variable-data.mjs && vite build && node scripts/inline-figma-ui.mjs && esbuild src/plugin/code.ts --bundle --format=iife --target=es2017 --outfile=dist/code.js",
     "dev": "vite"
   },
   "dependencies": {

@@ -1,5 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import svgPaths from "@/imports/PluginMockup-9/svg-hj2e820y6j";
+import colorsData from "@/data/colors.json";
+import typographyData from "@/data/typography.json";
+import layoutData from "@/data/layout.json";
 
 // ── SVG icons from design ─────────────────────────────────────────────────────
 
@@ -88,12 +91,18 @@ function MSym({ name, clampSize = F.ico, color = "#6e6e80" }: { name: string; cl
 
 // ── Data model ────────────────────────────────────────────────────────────────
 
-type VarType = "color" | "text" | "number";
+type FigmaVarType = "COLOR" | "FLOAT" | "STRING";
 
 interface DSVar {
+  id: string;
+  module: string;
+  submodule: string;
   name: string;
-  value: string;
-  type: VarType;
+  figmaName: string;
+  type: FigmaVarType;
+  value: string | number | { r: number; g: number; b: number; a: number };
+  unit?: string;
+  displayValue: string;
   preview?: string;
   icon?: string;
 }
@@ -102,177 +111,27 @@ interface Submodule {
   id: string;
   label: string;
   icon: string;
-  vars: DSVar[];
+  variables: DSVar[];
 }
 
 interface Module {
-  id: string;
+  module: string;
   label: string;
   tabIcon: string;
   submodules: Submodule[];
 }
 
 interface VariablePayload {
+  id: string;
   module: string;
   submodule: string;
   name: string;
-  value: string;
-  type: VarType;
+  figmaName: string;
+  value: string | number | { r: number; g: number; b: number; a: number };
+  type: FigmaVarType;
 }
 
-const DATA: Module[] = [
-  {
-    id: "colors",
-    label: "Colors",
-    tabIcon: "palette",
-    submodules: [
-      {
-        id: "palette",
-        label: "Palette",
-        icon: "palette",
-        vars: [
-          { name: "MidnightDepth",     value: "#05061a", type: "color", preview: "#05061a" },
-          { name: "MidnightDepth-900", value: "#090c2e", type: "color", preview: "#090c2e" },
-          { name: "MidnightDepth-800", value: "#141852", type: "color", preview: "#141852" },
-          { name: "MidnightDepth-700", value: "#1e2270", type: "color", preview: "#1e2270" },
-          { name: "MidnightDepth-600", value: "#2d328e", type: "color", preview: "#2d328e" },
-          { name: "MidnightDepth-500", value: "#5e6ad2", type: "color", preview: "#5e6ad2" },
-          { name: "MidnightDepth-400", value: "#8b94e0", type: "color", preview: "#8b94e0" },
-          { name: "MidnightDepth-300", value: "#b3bcea", type: "color", preview: "#b3bcea" },
-          { name: "MidnightDepth-200", value: "#d5d9f3", type: "color", preview: "#d5d9f3" },
-          { name: "MidnightDepth-100", value: "#eceef9", type: "color", preview: "#eceef9" },
-        ],
-      },
-      {
-        id: "semantic",
-        label: "Semantic",
-        icon: "gradient",
-        vars: [
-          { name: "Danger",  value: "#ef4444", type: "color", preview: "#ef4444" },
-          { name: "Warning", value: "#f59e0b", type: "color", preview: "#f59e0b" },
-          { name: "Info",    value: "#3b82f6", type: "color", preview: "#3b82f6" },
-          { name: "Sucess",  value: "#22c55e", type: "color", preview: "#22c55e" },
-        ],
-      },
-      {
-        id: "color-tokens",
-        label: "Tokens",
-        icon: "diamond",
-        vars: [
-          { name: "surface-primary", value: "#ffffff",          type: "color", preview: "#ffffff" },
-          { name: "bg-primary-dark", value: "#05061a",          type: "color", preview: "#05061a" },
-          { name: "text-primary",    value: "#0c0c0d",          type: "color", preview: "#0c0c0d" },
-          { name: "border-primary",  value: "#00000014",        type: "color", preview: "rgba(0,0,0,0.08)" },
-        ],
-      },
-    ],
-  },
-  {
-    id: "typography",
-    label: "Typography",
-    tabIcon: "font_download",
-    submodules: [
-      {
-        id: "family",
-        label: "Family",
-        icon: "font_download",
-        vars: [
-          { name: "font-family-sans",  value: "DM Sans",                   type: "text", icon: "format_shapes" },
-          { name: "font-family-icon",  value: "Material Symbols Outlined", type: "text", icon: "shapes" },
-        ],
-      },
-      {
-        id: "sizes",
-        label: "Sizes",
-        icon: "format_size",
-        vars: [
-          { name: "caption",   value: "10px", type: "text", icon: "text_fields" },
-          { name: "small",     value: "12px", type: "text", icon: "text_fields" },
-          { name: "p",         value: "14px", type: "text", icon: "text_fields" },
-          { name: "h6",        value: "16px", type: "text", icon: "text_fields" },
-          { name: "h5",        value: "18px", type: "text", icon: "text_fields" },
-          { name: "h4",        value: "20px", type: "text", icon: "text_fields" },
-          { name: "h3",        value: "24px", type: "text", icon: "text_fields" },
-          { name: "h2",        value: "30px", type: "text", icon: "text_fields" },
-          { name: "h1",        value: "36px", type: "text", icon: "text_fields" },
-          { name: "display-4", value: "48px", type: "text", icon: "text_fields" },
-          { name: "display-3", value: "60px", type: "text", icon: "text_fields" },
-          { name: "display-2", value: "72px", type: "text", icon: "text_fields" },
-          { name: "display-1", value: "96px", type: "text", icon: "text_fields" },
-        ],
-      },
-      {
-        id: "weight",
-        label: "Weight",
-        icon: "format_bold",
-        vars: [
-          { name: "font-weight-light",   value: "300", type: "number", icon: "format_bold" },
-          { name: "font-weight-regular", value: "400", type: "number", icon: "format_bold" },
-          { name: "font-weight-medium",  value: "500", type: "number", icon: "format_bold" },
-          { name: "font-weight-bold",    value: "700", type: "number", icon: "format_bold" },
-        ],
-      },
-      {
-        id: "lineheight",
-        label: "Line Height",
-        icon: "format_line_spacing",
-        vars: [
-          { name: "LineHeight-tight", value: "1.2", type: "number", icon: "format_line_spacing" },
-        ],
-      },
-      {
-        id: "typo-tokens",
-        label: "Tokens",
-        icon: "diamond",
-        vars: [
-          { name: "text-primary",   value: "#0c0c0d",           type: "color", preview: "#0c0c0d" },
-          { name: "text-secundary", value: "rgba(12,12,13,0.5)", type: "color", preview: "rgba(12,12,13,0.5)" },
-        ],
-      },
-    ],
-  },
-  {
-    id: "layout",
-    label: "Layout",
-    tabIcon: "grid_4x4",
-    submodules: [
-      {
-        id: "grid",
-        label: "Grid",
-        icon: "grid_4x4",
-        vars: [
-          { name: "columns-mobile",  value: "4",    type: "number", icon: "smartphone" },
-          { name: "columns-tablet",  value: "8",    type: "number", icon: "tablet" },
-          { name: "columns-desktop", value: "12",   type: "number", icon: "desktop_windows" },
-          { name: "gutters",         value: "16px", type: "text",   icon: "space_bar" },
-          { name: "padding",         value: "16px", type: "text",   icon: "padding" },
-          { name: "margin",          value: "24px", type: "text",   icon: "margin" },
-        ],
-      },
-      {
-        id: "radius",
-        label: "Radius",
-        icon: "rounded_corner",
-        vars: [
-          { name: "radius-sm", value: "4px",  type: "text", icon: "rounded_corner" },
-          { name: "radius-lg", value: "16px", type: "text", icon: "rounded_corner" },
-        ],
-      },
-      {
-        id: "space",
-        label: "Space",
-        icon: "space_bar",
-        vars: [
-          { name: "spacing-4",  value: "4px",  type: "text", icon: "space_bar" },
-          { name: "spacing-8",  value: "8px",  type: "text", icon: "space_bar" },
-          { name: "spacing-12", value: "12px", type: "text", icon: "space_bar" },
-          { name: "spacing-16", value: "16px", type: "text", icon: "space_bar" },
-          { name: "spacing-24", value: "24px", type: "text", icon: "space_bar" },
-        ],
-      },
-    ],
-  },
-];
+const DATA = [colorsData, typographyData, layoutData] as Module[];
 
 // ── Components ────────────────────────────────────────────────────────────────
 
@@ -292,7 +151,7 @@ function ColorTokenRow({ v, onValueChange }: { v: DSVar; onValueChange: (name: s
     return "#000000";
   };
 
-  const displayColor = v.preview ?? v.value;
+  const displayColor = v.preview ?? v.displayValue;
 
   return (
     <div
@@ -314,8 +173,8 @@ function ColorTokenRow({ v, onValueChange }: { v: DSVar; onValueChange: (name: s
         <input
           ref={colorInputRef}
           type="color"
-          value={toHex(v.value)}
-          onChange={(e) => onValueChange(v.name, e.target.value)}
+          value={toHex(v.displayValue)}
+          onChange={(e) => onValueChange(v.id, e.target.value)}
           onClick={(e) => e.stopPropagation()}
           className="absolute opacity-0 inset-0 w-full h-full cursor-pointer"
           style={{ padding: 0, border: 0 }}
@@ -327,7 +186,7 @@ function ColorTokenRow({ v, onValueChange }: { v: DSVar; onValueChange: (name: s
       </span>
       {hovered && (
         <span className="shrink-0 rounded-[4px] bg-white border border-[rgba(0,0,0,0.08)] text-[#6e6e80] whitespace-nowrap" style={{ fontFamily: "'Source Sans 3', sans-serif", fontSize: F.xxs, lineHeight: 1.4, padding: "0.15em 0.45em" }}>
-          {v.value}
+          {v.displayValue}
         </span>
       )}
     </div>
@@ -336,13 +195,13 @@ function ColorTokenRow({ v, onValueChange }: { v: DSVar; onValueChange: (name: s
 
 function GenericTokenRow({ v, onValueChange }: { v: DSVar; onValueChange: (name: string, val: string) => void; }) {
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(v.value);
+  const [draft, setDraft] = useState(v.displayValue);
   const [hovered, setHovered] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { if (editing) inputRef.current?.focus(); }, [editing]);
 
-  const commit = () => { onValueChange(v.name, draft); setEditing(false); };
+  const commit = () => { onValueChange(v.id, draft); setEditing(false); };
 
   return (
     <div
@@ -374,7 +233,7 @@ function GenericTokenRow({ v, onValueChange }: { v: DSVar; onValueChange: (name:
           onBlur={commit}
           onKeyDown={(e) => {
             if (e.key === "Enter") commit();
-            if (e.key === "Escape") { setDraft(v.value); setEditing(false); }
+            if (e.key === "Escape") { setDraft(v.displayValue); setEditing(false); }
           }}
           onClick={(e) => e.stopPropagation()}
           className="bg-white border border-[#5e6ad2] rounded-[4px] text-[#0c0c0d] outline-none shrink-0"
@@ -382,7 +241,7 @@ function GenericTokenRow({ v, onValueChange }: { v: DSVar; onValueChange: (name:
         />
       ) : hovered ? (
         <span className="shrink-0 rounded-[4px] bg-white border border-[rgba(0,0,0,0.08)] text-[#6e6e80] whitespace-nowrap" style={{ fontFamily: "'Source Sans 3', sans-serif", fontSize: F.xxs, lineHeight: 1.4, padding: "0.15em 0.45em" }}>
-          {v.value}
+          {v.displayValue}
         </span>
       ) : null}
     </div>
@@ -390,8 +249,7 @@ function GenericTokenRow({ v, onValueChange }: { v: DSVar; onValueChange: (name:
 }
 
 function SubmoduleSection({ moduleId, sub, isOpen, onToggle, query, values, onValueChange, isColorModule }: { moduleId: string; sub: Submodule; isOpen: boolean; onToggle: () => void; query: string; values: Record<string, string>; onValueChange: (name: string, val: string) => void; isColorModule: boolean; }) {
-  const filtered = sub.vars.filter((v) => !query || v.name.toLowerCase().includes(query.toLowerCase()));
-  const tokenKey = (name: string) => `${moduleId}/${sub.id}/${name}`;
+  const filtered = sub.variables.filter((v) => !query || v.name.toLowerCase().includes(query.toLowerCase()));
 
   return (
     <div className="bg-[#fafafa] shrink-0 w-full">
@@ -408,12 +266,12 @@ function SubmoduleSection({ moduleId, sub, isOpen, onToggle, query, values, onVa
             <p className="text-center text-[#6e6e80] py-[10px]" style={{ fontSize: F.xs }}>No tokens found</p>
           ) : (
             filtered.map((v) => {
-              const currentValue = values[tokenKey(v.name)] ?? v.value;
-              const current = { ...v, value: currentValue, preview: v.type === "color" ? currentValue : v.preview };
-              return (v.type === "color" && isColorModule) ? (
-                <ColorTokenRow key={v.name} v={current} onValueChange={(name, val) => onValueChange(tokenKey(name), val)} />
+              const currentDisplayValue = values[v.id] ?? v.displayValue;
+              const current = { ...v, displayValue: currentDisplayValue, preview: v.type === "COLOR" ? currentDisplayValue : v.preview };
+              return (v.type === "COLOR" && isColorModule) ? (
+                <ColorTokenRow key={v.id} v={current} onValueChange={onValueChange} />
               ) : (
-                <GenericTokenRow key={v.name} v={current} onValueChange={(name, val) => onValueChange(tokenKey(name), val)} />
+                <GenericTokenRow key={v.id} v={current} onValueChange={onValueChange} />
               );
             })
           )}
@@ -426,12 +284,12 @@ function SubmoduleSection({ moduleId, sub, isOpen, onToggle, query, values, onVa
 function ModulePanel({ module, query, values, onValueChange }: { module: Module; query: string; values: Record<string, string>; onValueChange: (key: string, val: string) => void; }) {
   const [openId, setOpenId] = useState<string>(module.submodules[0]?.id ?? "");
   const toggle = (id: string) => setOpenId((prev) => (prev === id ? "" : id));
-  const isColorModule = module.id === "colors";
+  const isColorModule = module.module === "colors";
 
   return (
     <div className="flex flex-col w-full">
       {module.submodules.map((sub) => (
-        <SubmoduleSection key={sub.id} moduleId={module.id} sub={sub} isOpen={openId === sub.id} onToggle={() => toggle(sub.id)} query={query} values={values} onValueChange={onValueChange} isColorModule={isColorModule} />
+        <SubmoduleSection key={sub.id} moduleId={module.module} sub={sub} isOpen={openId === sub.id} onToggle={() => toggle(sub.id)} query={query} values={values} onValueChange={onValueChange} isColorModule={isColorModule} />
       ))}
     </div>
   );
@@ -460,9 +318,9 @@ function TabBar({ active, onChange }: { active: string; onChange: (id: string) =
       <div aria-hidden className="absolute border-[rgba(0,0,0,0.08)] border-b border-solid inset-0 pointer-events-none" />
       <div className="flex items-start w-full">
         {DATA.map((mod) => {
-          const isActive = active === mod.id;
+          const isActive = active === mod.module;
           return (
-            <button key={mod.id} onClick={() => onChange(mod.id)} className="flex-1 flex flex-col items-center justify-center gap-[0.25em] relative bg-transparent border-0 cursor-pointer py-[clamp(0.5rem,1vw,0.75rem)]" style={{ minHeight: H.tab }}>
+            <button key={mod.module} onClick={() => onChange(mod.module)} className="flex-1 flex flex-col items-center justify-center gap-[0.25em] relative bg-transparent border-0 cursor-pointer py-[clamp(0.5rem,1vw,0.75rem)]" style={{ minHeight: H.tab }}>
               <div aria-hidden className="absolute border-b-2 border-solid inset-0 pointer-events-none" style={{ borderColor: isActive ? "#5e6ad2" : "transparent" }} />
               <MSym name={mod.tabIcon} clampSize={F.ico} color={isActive ? "#5e6ad2" : "#6e6e80"} />
               <span className="font-medium text-center whitespace-nowrap" style={{ fontFamily: "'Source Sans 3', sans-serif", fontSize: F.xs, color: isActive ? "#5e6ad2" : "#6e6e80" }}>{mod.label}</span>
@@ -633,8 +491,8 @@ export default function App() {
   const [values, setValues] = useState<Record<string, string>>({});
   const [showUnlockModal, setShowUnlockModal] = useState(false);
 
-  const activeModule = DATA.find((m) => m.id === activeTab)!;
-  const totalVars = DATA.reduce((acc, module) => acc + module.submodules.reduce((subAcc, s) => subAcc + s.vars.length, 0), 0);
+  const activeModule = DATA.find((m) => m.module === activeTab)!;
+  const totalVars = DATA.reduce((acc, module) => acc + module.submodules.reduce((subAcc, s) => subAcc + s.variables.length, 0), 0);
 
   const handleTabChange = (id: string) => {
     setActiveTab(id);
@@ -648,11 +506,13 @@ export default function App() {
   const getVariablePayload = (): VariablePayload[] => {
     return DATA.flatMap((module) =>
       module.submodules.flatMap((submodule) =>
-        submodule.vars.map((v) => ({
-          module: module.id,
+        submodule.variables.map((v) => ({
+          id: v.id,
+          module: module.module,
           submodule: submodule.id,
           name: v.name,
-          value: values[`${module.id}/${submodule.id}/${v.name}`] ?? v.value,
+          figmaName: v.figmaName,
+          value: values[v.id] ?? v.value,
           type: v.type,
         }))
       )
