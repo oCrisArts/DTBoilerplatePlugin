@@ -87,17 +87,22 @@
     boardPaddingX: 80,
     boardPaddingY: 64,
     boardGap: 64,
+    compactBoardGap: 48,
     rootGap: 40,
     tableWidth: 1760,
+    paletteHeaderHeight: 43,
     headerHeight: 40,
     rowHeight: 64,
     compactRowHeight: 56,
     radius: 8,
+    tableRadius: 12,
     fonts: {
       regular: { family: "Inter", style: "Regular" },
       medium: { family: "Inter", style: "Medium" },
       semiBold: { family: "Inter", style: "Semi Bold" },
-      bold: { family: "Inter", style: "Bold" }
+      bold: { family: "Inter", style: "Bold" },
+      extraBold: { family: "Inter", style: "Extra Bold" },
+      mono: { family: "JetBrains Mono", style: "Regular" }
     },
     colors: {
       page: { r: 0.97, g: 0.97, b: 0.98 },
@@ -133,16 +138,22 @@
     root.y = 0;
     page.appendChild(root);
     root.appendChild(await createColorPaletteBoard(tokens, variablesByName));
+    const firstBoard = root.children[0];
     root.appendChild(await createSemanticColorsBoard(tokens, variablesByName));
     root.appendChild(await createColorTokensBoard(tokens, variablesByName));
     root.appendChild(await createTypographyBoard(tokens, variablesByName));
     root.appendChild(await createLayoutBoard(tokens, variablesByName));
-    figma.currentPage.selection = [root];
-    figma.viewport.scrollAndZoomIntoView([root]);
+    if (firstBoard) {
+      figma.currentPage.selection = [firstBoard];
+      figma.viewport.scrollAndZoomIntoView([firstBoard]);
+    }
     return { pageName: DOC_PAGE_NAME, frameId: root.id };
   }
   async function createColorPaletteBoard(tokens, variablesByName) {
-    const board = createBoard("DT Boilerplate \u2014 Color Palette", "Core brand scales grouped by family.");
+    const board = createBoard(
+      "DT Boilerplate \u2014 Color Palette",
+      "The palette defines the foundational colors of the design system. Each scale goes from 950 (darkest) to 100 (lightest)."
+    );
     const palette = tokens.filter((token) => token.module === "colors" && token.submodule === "palette");
     for (const group of ["Primary", "Secondary", "Grayscale"]) {
       const groupTokens = palette.filter((token) => getColorFamily(token) === group);
@@ -158,14 +169,20 @@
             await createTextCell(token.name),
             await createTextCell(getDisplayValue(token)),
             await createTextCell(token.figmaName, "muted")
-          ]
+          ],
+          UI.rowHeight,
+          UI.paletteHeaderHeight,
+          UI.tableRadius
         )
       );
     }
     return board;
   }
   async function createSemanticColorsBoard(tokens, variablesByName) {
-    const board = createBoard("DT Boilerplate \u2014 Semantic Colors", "State colors organized by semantic intent.");
+    const board = createBoard(
+      "DT Boilerplate \u2014 Semantic Colors",
+      "Semantic colors communicate meaning and status \u2014 danger (errors), warning (caution), info (informational), and success (positive outcomes)."
+    );
     const semantic = tokens.filter((token) => token.module === "colors" && token.submodule === "semantic");
     for (const group of ["Danger", "Warning", "Info", "Success"]) {
       const groupTokens = semantic.filter((token) => token.name.toLowerCase().startsWith(group.toLowerCase()));
@@ -181,14 +198,21 @@
             await createTextCell(token.name),
             await createTextCell(getDisplayValue(token)),
             await createTextCell(token.figmaName, "muted")
-          ]
+          ],
+          UI.rowHeight,
+          UI.paletteHeaderHeight,
+          UI.tableRadius
         )
       );
     }
     return board;
   }
   async function createColorTokensBoard(tokens, variablesByName) {
-    const board = createBoard("Color Tokens", "Component color tokens preserving the component scope path.");
+    const board = createBoard(
+      "Color Tokens",
+      "Component-level color tokens map design decisions to specific UI roles \u2014 buttons, inputs, content text, and surface backgrounds.",
+      { titleSize: 40, titleLineHeight: 48, titleWeight: "extraBold", descriptionSize: 18, descriptionWidth: 1e3 }
+    );
     const colorTokens = tokens.filter((token) => token.module === "colors" && token.submodule === "tokens");
     for (const group of ["Button", "Input", "Content", "Surface"]) {
       const groupTokens = colorTokens.filter((token) => getPathPart(token, 2) === group);
@@ -211,79 +235,101 @@
     return board;
   }
   async function createTypographyBoard(tokens, variablesByName) {
-    const board = createBoard("Typography", "Font families, type scale, weights, line heights and typography tokens.");
+    const board = createBoard(
+      "Typography",
+      "Typography variables define the font families, sizes, weights, and line heights used across the design system.",
+      {
+        sectionLabel: "Documentation",
+        titleSize: 48,
+        titleLineHeight: 62,
+        titleWeight: "bold",
+        descriptionSize: 18,
+        descriptionWidth: 800,
+        headerGap: 8,
+        boardGap: UI.compactBoardGap
+      }
+    );
     const groups = [
-      ["Family", tokens.filter((token) => token.module === "typography" && token.submodule === "family")],
-      ["Sizes", tokens.filter((token) => token.module === "typography" && token.submodule === "sizes")],
-      ["Weight", tokens.filter((token) => token.module === "typography" && token.submodule === "weight")],
-      ["Line Height", tokens.filter((token) => token.module === "typography" && token.submodule === "line-height")],
+      ["Font Families", tokens.filter((token) => token.module === "typography" && token.submodule === "family")],
+      ["Font Sizes", tokens.filter((token) => token.module === "typography" && token.submodule === "sizes")],
+      ["Font Weights", tokens.filter((token) => token.module === "typography" && token.submodule === "weight")],
+      ["Line Heights", tokens.filter((token) => token.module === "typography" && token.submodule === "lineheight")],
       ["Typography Tokens", tokens.filter((token) => token.module === "typography" && token.submodule === "tokens")]
     ];
     for (const [label, groupTokens] of groups) {
       if (groupTokens.length === 0) continue;
-      board.appendChild(await createSectionTitle(label));
-      board.appendChild(
-        await createTokenTable(
-          ["Preview", "Variable Name", "Value", "Variable Path"],
-          [520, 260, 180, 768],
-          groupTokens,
-          async (token) => [
-            await createTypographyPreviewCell(token, variablesByName),
-            await createTextCell(token.name),
-            await createTextCell(getDisplayValue(token)),
-            await createTextCell(token.figmaName, "muted")
-          ],
-          UI.compactRowHeight
-        )
-      );
+      board.appendChild(await createTypographySection(label, groupTokens, variablesByName));
     }
     return board;
   }
   async function createLayoutBoard(tokens, variablesByName) {
-    const board = createBoard("Layout", "Grid, radius, spacing and component layout tokens.");
+    const board = createBoard(
+      "Layout",
+      "Layout variables define spacing, grid configuration, border radius, and component sizing tokens.",
+      {
+        sectionLabel: "Documentation",
+        titleSize: 48,
+        titleLineHeight: 62,
+        titleWeight: "bold",
+        descriptionSize: 18,
+        descriptionWidth: 800,
+        headerGap: 8,
+        boardGap: UI.compactBoardGap
+      }
+    );
     const groups = [
       ["Grid", tokens.filter((token) => token.module === "layout" && token.submodule === "grid")],
-      ["Radius", tokens.filter((token) => token.module === "layout" && token.submodule === "radius")],
-      ["Space", tokens.filter((token) => token.module === "layout" && token.submodule === "space")]
+      ["Border Radius", tokens.filter((token) => token.module === "layout" && token.submodule === "radius")],
+      ["Spacing Scale", tokens.filter((token) => token.module === "layout" && token.submodule === "space")]
     ];
     for (const [label, groupTokens] of groups) {
       if (groupTokens.length === 0) continue;
       board.appendChild(await createSectionTitle(label));
+      if (label === "Grid") {
+        board.appendChild(
+          await createTokenTable(
+            ["Variable Name", "Value", "Variable Path"],
+            [240, 120, 1304],
+            groupTokens,
+            async (token) => [
+              await createTextCell(token.name),
+              await createTextCell(getDisplayValue(token), "text", 120, UI.compactRowHeight, 14, "mono"),
+              await createTextCell(token.figmaName, "muted", 1304, UI.compactRowHeight, 14, "mono")
+            ],
+            UI.compactRowHeight
+          )
+        );
+        continue;
+      }
       board.appendChild(
         await createTokenTable(
-          ["Preview", "Variable Name", "Value", "Variable Path"],
-          [400, 160, 80, 1e3],
+          label === "Border Radius" ? ["Visual preview", "Variable Name", "Value", "Variable Path"] : ["Visual bar", "Variable Name", "Value", "Variable Path"],
+          label === "Border Radius" ? [670, 200, 100, 670] : [400, 160, 80, 1e3],
           groupTokens,
           async (token) => [
             await createLayoutPreviewCell(token, variablesByName),
             await createTextCell(token.name),
-            await createTextCell(getDisplayValue(token)),
-            await createTextCell(token.figmaName, "muted")
+            await createTextCell(getDisplayValue(token), "text", label === "Border Radius" ? 100 : 80, UI.compactRowHeight, 14, "mono"),
+            await createTextCell(token.figmaName, "muted", label === "Border Radius" ? 670 : 1e3, UI.compactRowHeight, 14, "mono")
           ],
-          UI.compactRowHeight
+          label === "Border Radius" ? 72 : UI.compactRowHeight
         )
       );
     }
     const layoutTokens = tokens.filter((token) => token.module === "layout" && token.submodule === "tokens");
-    const tokenGroups = [
-      ["Button Primary", layoutTokens.filter((token) => getPathPart(token, 2) === "Button" && getPathPart(token, 3) === "Primary")],
-      ["Button Secondary", layoutTokens.filter((token) => getPathPart(token, 2) === "Button" && getPathPart(token, 3) === "Secondary")],
-      ["Input Primary", layoutTokens.filter((token) => getPathPart(token, 2) === "Input" && getPathPart(token, 3) === "Primary")],
-      ["Surface Primary", layoutTokens.filter((token) => getPathPart(token, 2) === "Surface" && getPathPart(token, 3) === "Primary")]
-    ];
-    for (const [label, groupTokens] of tokenGroups) {
-      if (groupTokens.length === 0) continue;
+    if (layoutTokens.length > 0) {
+      const label = "Component Layout Tokens";
       board.appendChild(await createSectionTitle(label));
       board.appendChild(
         await createTokenTable(
-          ["Preview", "Variable Name", "Value", "Variable Path"],
-          [400, 160, 80, 1e3],
-          groupTokens,
+          ["Component", "Token", "Value", "Variable Path"],
+          [160, 160, 120, 1200],
+          layoutTokens,
           async (token) => [
-            await createLayoutPreviewCell(token, variablesByName),
-            await createTextCell(token.name),
-            await createTextCell(getDisplayValue(token)),
-            await createTextCell(token.figmaName, "muted")
+            await createTextCell(`${getPathPart(token, 2)} ${getPathPart(token, 3)}`.trim()),
+            await createTextCell(getPathPart(token, 4) || token.name),
+            await createTextCell(getDisplayValue(token), "text", 120, UI.compactRowHeight, 14, "mono"),
+            await createTextCell(token.figmaName, "muted", 1200, UI.compactRowHeight, 14, "mono")
           ],
           UI.compactRowHeight
         )
@@ -291,30 +337,106 @@
     }
     return board;
   }
-  function createBoard(title, description) {
+  function createBoard(title, description, options = {}) {
+    var _a, _b, _c, _d, _e, _f, _g;
     const board = createFrame(title, "VERTICAL", {
       width: UI.boardWidth,
       fills: [solid(UI.colors.board)],
-      itemSpacing: UI.boardGap,
+      itemSpacing: (_a = options.boardGap) != null ? _a : UI.boardGap,
       padding: { top: UI.boardPaddingY, right: UI.boardPaddingX, bottom: UI.boardPaddingY, left: UI.boardPaddingX }
     });
     const header = createFrame(`${title} Header`, "VERTICAL", {
       width: UI.tableWidth,
-      itemSpacing: 12,
+      itemSpacing: (_b = options.headerGap) != null ? _b : 12,
       padding: 0
     });
-    header.appendChild(createText(title, 44, 58, "semiBold"));
-    header.appendChild(createText(description, 18, 24, "regular", "muted"));
+    if (options.sectionLabel) {
+      header.appendChild(createText(options.sectionLabel, 14, 18, "semiBold", "muted"));
+    }
+    const titleNode = createText(
+      title,
+      (_c = options.titleSize) != null ? _c : 48,
+      (_d = options.titleLineHeight) != null ? _d : 58,
+      (_e = options.titleWeight) != null ? _e : "bold",
+      title.startsWith("DT Boilerplate") ? "accent" : "text"
+    );
+    if (!title.startsWith("DT Boilerplate")) titleNode.textAutoResize = "WIDTH_AND_HEIGHT";
+    header.appendChild(titleNode);
+    const descriptionNode = createText(description, (_f = options.descriptionSize) != null ? _f : 16, 24, "regular", "muted");
+    descriptionNode.resize((_g = options.descriptionWidth) != null ? _g : UI.tableWidth, descriptionNode.height);
+    descriptionNode.textAutoResize = "HEIGHT";
+    header.appendChild(descriptionNode);
     board.appendChild(header);
     return board;
   }
   async function createSectionTitle(title) {
-    return createText(title, 30, 36, "semiBold");
+    return createText(title, 32, 39, "bold", "accent");
   }
-  async function createTokenTable(headers, columns, tokens, createCells, rowHeight = UI.rowHeight) {
-    const table = createFrame("Token Table", "VERTICAL", {
+  async function createTypographySection(title, tokens, variablesByName) {
+    const section = createFrame(title, "VERTICAL", {
       width: UI.tableWidth,
-      fills: [solid(UI.colors.board)],
+      itemSpacing: 16,
+      padding: 0
+    });
+    section.appendChild(await createTypographySectionTitle(title));
+    if (title === "Line Heights") {
+      section.appendChild(
+        await createTypographyTable(
+          ["Variable Name", "Value (multiplier)", "Variable Path"],
+          [320, 160, 1184],
+          tokens,
+          async (token) => [
+            await createTextCell(token.name, "text", 320, UI.compactRowHeight, 14, "medium"),
+            await createTextCell(getDisplayValue(token), "text", 160, UI.compactRowHeight, 14, "mono"),
+            await createTextCell(token.figmaName, "muted", 1184, UI.compactRowHeight, 14, "mono")
+          ],
+          () => UI.compactRowHeight
+        )
+      );
+      return section;
+    }
+    const columns = getTypographyColumns(title);
+    section.appendChild(
+      await createTypographyTable(
+        columns.headers,
+        columns.widths,
+        tokens,
+        async (token, rowHeight) => [
+          await createTypographyPreviewCell(token, variablesByName, columns.widths[0], rowHeight),
+          await createTextCell(token.name, "text", columns.widths[1], rowHeight, 14, "medium"),
+          await createTextCell(getDisplayValue(token), "text", columns.widths[2], rowHeight, 14, "mono"),
+          await createTextCell(token.figmaName, "muted", columns.widths[3], rowHeight, 14, "mono")
+        ],
+        (token) => getTypographyRowHeight(token)
+      )
+    );
+    return section;
+  }
+  async function createTypographySectionTitle(title) {
+    return createText(title, 24, 31, "bold", "accent");
+  }
+  function getTypographyColumns(title) {
+    if (title === "Font Families") {
+      return {
+        headers: ["Example text", "Variable Name", "Value", "Variable Path"],
+        widths: [240, 240, 240, 920]
+      };
+    }
+    if (title === "Font Sizes") {
+      return {
+        headers: ["Size preview", "Variable Name", "Value (px)", "Variable Path"],
+        widths: [1024, 200, 100, 316]
+      };
+    }
+    return {
+      headers: ["Weight preview", "Variable Name", "Value", "Variable Path"],
+      widths: [320, 240, 100, 980]
+    };
+  }
+  async function createTypographyTable(headers, columns, tokens, createCells, getRowHeight) {
+    const table = createFrame("Typography Table", "VERTICAL", {
+      width: UI.tableWidth,
+      fills: [],
       strokes: [solid(UI.colors.border)],
       cornerRadius: UI.radius,
       itemSpacing: 0,
@@ -324,11 +446,51 @@
       width: UI.tableWidth,
       height: UI.headerHeight,
       fills: [solid(UI.colors.header)],
+      itemSpacing: 24,
+      padding: { top: 0, right: 24, bottom: 0, left: 24 },
+      alignItems: "CENTER"
+    });
+    headers.forEach((label, index) => {
+      header.appendChild(createTextCell(label, "text", columns[index], UI.headerHeight, 12, "bold"));
+    });
+    table.appendChild(header);
+    for (const token of tokens) {
+      const rowHeight = getRowHeight(token);
+      const row = createFrame(token.figmaName, "HORIZONTAL", {
+        width: UI.tableWidth,
+        height: rowHeight,
+        fills: [solid(UI.colors.board)],
+        itemSpacing: 24,
+        padding: { top: 0, right: 24, bottom: 0, left: 24 },
+        alignItems: "CENTER"
+      });
+      const cells = await createCells(token, rowHeight);
+      cells.forEach((cell, index) => {
+        resizeCell(cell, columns[index], rowHeight);
+        row.appendChild(cell);
+      });
+      table.appendChild(row);
+    }
+    return table;
+  }
+  async function createTokenTable(headers, columns, tokens, createCells, rowHeight = UI.rowHeight, headerHeight = UI.headerHeight, cornerRadius = UI.radius) {
+    const table = createFrame("Token Table", "VERTICAL", {
+      width: UI.tableWidth,
+      fills: [solid(UI.colors.board)],
+      strokes: [solid(UI.colors.border)],
+      cornerRadius,
+      itemSpacing: 0,
+      padding: 0
+    });
+    const header = createFrame("Header", "HORIZONTAL", {
+      width: UI.tableWidth,
+      height: headerHeight,
+      fills: [solid(UI.colors.header)],
       itemSpacing: 0,
       padding: { top: 0, right: 16, bottom: 0, left: 16 }
     });
     headers.forEach((label, index) => {
-      header.appendChild(createTextCell(label, "muted", columns[index], UI.headerHeight, 13, "medium"));
+      header.appendChild(createTextCell(label, "text", columns[index], headerHeight, 16, "bold"));
     });
     table.appendChild(header);
     for (const token of tokens) {
@@ -358,22 +520,55 @@
     cell.appendChild(swatch);
     return cell;
   }
-  async function createTypographyPreviewCell(token, variablesByName) {
-    const cell = createCellFrame(520, UI.compactRowHeight);
+  async function createTypographyPreviewCell(token, variablesByName, width = 520, rowHeight = UI.compactRowHeight) {
+    const cell = createCellFrame(width, rowHeight);
+    cell.clipsContent = true;
     const value = getNumericValue(token);
     const text = createText(SAMPLE_TEXT, 16, 22, "regular");
+    const sampleWidth = Math.max(1, width);
+    const sampleLineHeight = getTypographySampleLineHeight(token);
     if (token.submodule === "family") {
-      text.fontName = await loadFontSafely(getDisplayValue(token), "Regular");
+      const family = getDisplayValue(token);
+      text.characters = family.toLowerCase().includes("material") ? "home" : "Aa";
+      text.fontName = await loadFontSafely(family, "Regular");
+      text.fontSize = family.toLowerCase().includes("material") ? 24 : 20;
     } else if (token.submodule === "sizes" && value !== null) {
-      text.fontSize = Math.max(8, Math.min(32, value));
+      text.fontSize = Math.max(1, value);
     } else if (token.submodule === "weight" && value !== null) {
+      text.characters = "DT Boilerplate Typography";
+      text.fontSize = 18;
       text.fontName = await fontForWeight(value);
-    } else if (token.submodule === "line-height" && value !== null) {
+    } else if (token.submodule === "lineheight" && value !== null) {
       text.lineHeight = value <= 4 ? { unit: "PERCENT", value: value * 100 } : { unit: "PIXELS", value };
     }
-    bindFloat(text, token, variablesByName, "fontSize");
+    text.textAutoResize = "TRUNCATE";
+    text.resize(sampleWidth, Math.max(1, rowHeight - 32));
+    text.lineHeight = sampleLineHeight;
+    cell.clipsContent = true;
+    if (token.submodule === "sizes") bindFloat(text, token, variablesByName, "fontSize");
     cell.appendChild(text);
     return cell;
+  }
+  function getTypographyRowHeight(token) {
+    var _a;
+    const value = (_a = getNumericValue(token)) != null ? _a : 16;
+    if (token.submodule === "family") {
+      return valueLabel(token).toLowerCase().includes("material") ? 61 : 58;
+    }
+    if (token.submodule === "sizes") {
+      return Math.max(UI.compactRowHeight, Math.ceil(value * 1.3) + 32);
+    }
+    return UI.compactRowHeight;
+  }
+  function getTypographySampleLineHeight(token) {
+    const value = getNumericValue(token);
+    if (token.submodule === "lineheight" && value !== null) {
+      return value <= 4 ? { unit: "PERCENT", value: value * 100 } : { unit: "PIXELS", value };
+    }
+    return { unit: "AUTO" };
+  }
+  function valueLabel(token) {
+    return getDisplayValue(token);
   }
   async function createLayoutPreviewCell(token, variablesByName) {
     var _a;
@@ -455,6 +650,7 @@
   }
   function createTextCell(value, color = "text", width = 240, height = UI.rowHeight, size = 15, weight = "regular") {
     const cell = createCellFrame(width, height);
+    cell.clipsContent = true;
     const text = createText(value, size, 20, weight, color);
     text.textAutoResize = "TRUNCATE";
     text.resize(width - 16, 24);
@@ -478,20 +674,20 @@
     var _a, _b, _c, _d, _e, _f, _g, _h;
     const frame = figma.createFrame();
     frame.name = name;
-    frame.fills = (_a = options.fills) != null ? _a : [];
-    frame.strokes = (_b = options.strokes) != null ? _b : [];
-    frame.cornerRadius = (_c = options.cornerRadius) != null ? _c : 0;
-    frame.layoutMode = layoutMode;
-    frame.primaryAxisSizingMode = options.height === void 0 ? "AUTO" : "FIXED";
-    frame.counterAxisSizingMode = options.width === void 0 ? "AUTO" : "FIXED";
-    frame.primaryAxisAlignItems = "MIN";
-    frame.counterAxisAlignItems = (_d = options.alignItems) != null ? _d : "MIN";
-    frame.itemSpacing = (_e = options.itemSpacing) != null ? _e : 0;
-    setPadding(frame, (_f = options.padding) != null ? _f : 0);
-    frame.clipsContent = false;
     if (options.width !== void 0 || options.height !== void 0) {
-      frame.resize((_g = options.width) != null ? _g : 1, (_h = options.height) != null ? _h : 1);
+      frame.resize((_a = options.width) != null ? _a : 1, (_b = options.height) != null ? _b : 1);
     }
+    frame.fills = (_c = options.fills) != null ? _c : [];
+    frame.strokes = (_d = options.strokes) != null ? _d : [];
+    frame.cornerRadius = (_e = options.cornerRadius) != null ? _e : 0;
+    frame.layoutMode = layoutMode;
+    frame.primaryAxisSizingMode = layoutMode === "HORIZONTAL" ? options.width === void 0 ? "AUTO" : "FIXED" : options.height === void 0 ? "AUTO" : "FIXED";
+    frame.counterAxisSizingMode = layoutMode === "HORIZONTAL" ? options.height === void 0 ? "AUTO" : "FIXED" : options.width === void 0 ? "AUTO" : "FIXED";
+    frame.primaryAxisAlignItems = "MIN";
+    frame.counterAxisAlignItems = (_f = options.alignItems) != null ? _f : "MIN";
+    frame.itemSpacing = (_g = options.itemSpacing) != null ? _g : 0;
+    setPadding(frame, (_h = options.padding) != null ? _h : 0);
+    frame.clipsContent = false;
     return frame;
   }
   function createText(value, size, lineHeight, weight, color = "text") {
@@ -550,11 +746,17 @@
     return variablesByName.get(token.figmaName);
   }
   async function loadFonts() {
+    UI.fonts.regular = await loadFontSafely(UI.fonts.regular.family, UI.fonts.regular.style);
+    UI.fonts.medium = await loadFontSafely(UI.fonts.medium.family, UI.fonts.medium.style);
+    UI.fonts.semiBold = await loadFontSafely(UI.fonts.semiBold.family, UI.fonts.semiBold.style);
+    UI.fonts.bold = await loadFontSafely(UI.fonts.bold.family, UI.fonts.bold.style);
+    UI.fonts.extraBold = await loadFontSafely(UI.fonts.extraBold.family, UI.fonts.extraBold.style);
+    UI.fonts.mono = await loadFontSafely(UI.fonts.mono.family, UI.fonts.mono.style);
     await Promise.all([
-      loadFontSafely(UI.fonts.regular.family, UI.fonts.regular.style),
-      loadFontSafely(UI.fonts.medium.family, UI.fonts.medium.style),
-      loadFontSafely(UI.fonts.semiBold.family, UI.fonts.semiBold.style),
-      loadFontSafely(UI.fonts.bold.family, UI.fonts.bold.style)
+      loadFontSafely("DM Sans", "Regular"),
+      loadFontSafely("DM Sans", "Bold"),
+      loadFontSafely("DM Sans", "SemiBold"),
+      loadFontSafely("DM Sans", "Light")
     ]);
   }
   async function loadFontSafely(family, style) {
