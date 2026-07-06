@@ -129,6 +129,10 @@ interface VariablePayload {
   figmaName: string;
   value: string | number | { r: number; g: number; b: number; a: number };
   type: FigmaVarType;
+  displayValue: string;
+  unit?: string;
+  preview?: string;
+  icon?: string;
 }
 
 const DATA = [colorsData, typographyData, layoutData] as Module[];
@@ -506,15 +510,25 @@ export default function App() {
   const getVariablePayload = (): VariablePayload[] => {
     return DATA.flatMap((module) =>
       module.submodules.flatMap((submodule) =>
-        submodule.variables.map((v) => ({
-          id: v.id,
-          module: module.module,
-          submodule: submodule.id,
-          name: v.name,
-          figmaName: v.figmaName,
-          value: values[v.id] ?? v.value,
-          type: v.type,
-        }))
+        submodule.variables.map((v) => {
+          const editedValue = values[v.id];
+          const value = editedValue ?? v.value;
+          const displayValue = editedValue ?? v.displayValue;
+
+          return {
+            id: v.id,
+            module: module.module,
+            submodule: submodule.id,
+            name: v.name,
+            figmaName: v.figmaName,
+            value,
+            type: v.type,
+            displayValue,
+            unit: v.unit,
+            preview: editedValue && v.type === "COLOR" ? editedValue : v.preview,
+            icon: v.icon,
+          };
+        })
       )
     );
   };

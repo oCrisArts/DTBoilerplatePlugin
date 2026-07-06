@@ -3,6 +3,7 @@ import {
   obterEstadoLicenca,
   podeGerarDesignTokens,
 } from "./licensing";
+import { generateVisualDocumentation } from "./documentation";
 
 type TokenPayload = {
   id: string;
@@ -12,6 +13,10 @@ type TokenPayload = {
   figmaName: string;
   value: string | number | { r: number; g: number; b: number; a: number };
   type: VariableType;
+  displayValue: string;
+  unit?: string;
+  preview?: string;
+  icon?: string;
 };
 
 type GenerateVariablesMessage = {
@@ -97,12 +102,34 @@ figma.ui.onmessage = async (message: PluginMessage) => {
 
     const result = await generateVariables(message.tokens);
 
+    if (result.count === 0) {
+      figma.notify("No variables were created or updated.", { error: true, timeout: 6000 });
+      figma.ui.postMessage({ type: "variables-generation-failed", error: "No variables were created or updated." });
+      return;
+    }
+
+    let documentationGenerated = false;
+
+    try {
+      await generateVisualDocumentation(message.tokens, result.variablesByName);
+      documentationGenerated = true;
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Unknown error";
+      console.error("[DT Boilerplate] Error generating documentation:", error);
+      figma.notify(`Variables generated, but documentation failed: ${detail}`, { error: true, timeout: 6000 });
+    }
+
     if (!licenca.premium) {
       await marcarGeracaoGratuitaUtilizada(figma.clientStorage);
     }
 
-    figma.notify(`DT Boilerplate ${result.action} ${result.count} variables.`);
-    figma.ui.postMessage({ type: "variables-generated", ...result });
+    figma.notify(
+      documentationGenerated
+        ? `DT Boilerplate ${result.action} ${result.count} variables and updated documentation.`
+        : `DT Boilerplate ${result.action} ${result.count} variables.`
+    );
+    const { variablesByName, ...uiResult } = result;
+    figma.ui.postMessage({ type: "variables-generated", ...uiResult, documentationGenerated });
   } catch (error) {
     const detail = error instanceof Error ? error.message : "Unknown error";
     console.error("Error generating variables:", error);
@@ -129,6 +156,7 @@ async function generateVariables(tokens: TokenPayload[]) {
     let created = 0;
     let updated = 0;
     const usedNames = new Set<string>();
+    const variablesByName = new Map<string, Variable>();
 
     for (const token of tokens) {
       const variableType = getVariableType(token);
@@ -145,6 +173,7 @@ async function generateVariables(tokens: TokenPayload[]) {
         try {
           existingVar.setValueForMode(modeId, getVariableValue(token, variableType));
           updated += 1;
+          variablesByName.set(name, existingVar);
           console.log(`[DT Boilerplate] Updated variable: ${name}`);
         } catch (error) {
           console.error(`[DT Boilerplate] Failed to update variable ${name}:`, error);
@@ -156,6 +185,7 @@ async function generateVariables(tokens: TokenPayload[]) {
           const variable = figma.variables.createVariable(name, collection, variableType);
           variable.setValueForMode(modeId, getVariableValue(token, variableType));
           created += 1;
+          variablesByName.set(name, variable);
           console.log(`[DT Boilerplate] Created variable: ${name}`);
         } catch (error) {
           console.error(`[DT Boilerplate] Failed to create variable ${name}:`, error);
@@ -168,7 +198,8 @@ async function generateVariables(tokens: TokenPayload[]) {
       action: created > 0 && updated > 0 ? "created and updated" : created > 0 ? "created" : "updated",
       count: created + updated,
       created,
-      updated
+      updated,
+      variablesByName
     };
   } catch (error) {
     console.error("[DT Boilerplate] Error in generateVariables:", error);
