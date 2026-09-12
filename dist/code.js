@@ -822,7 +822,7 @@
   // src/plugin/code.ts
   figma.showUI(__html__, {
     width: 420,
-    height: 640,
+    height: 747,
     themeColors: true
   });
   figma.ui.onmessage = async (message) => {
@@ -845,7 +845,7 @@
         figma.ui.postMessage({ type: "unlock-required" });
         return;
       }
-      const result = await generateVariables(message.tokens);
+      const result = await generateVariables(message.tokens, message.presetName);
       if (result.count === 0) {
         figma.notify("No variables were created or updated.", { error: true, timeout: 6e3 });
         figma.ui.postMessage({ type: "variables-generation-failed", error: "No variables were created or updated." });
@@ -875,9 +875,10 @@
       figma.ui.postMessage({ type: "variables-generation-failed", error: detail });
     }
   };
-  async function generateVariables(tokens) {
+  async function generateVariables(tokens, presetName = "DT Boilerplate") {
     try {
-      const collection = await findOrCreateCollection("DT Boilerplate");
+      const collectionName = presetName ? `StartToken / ${presetName}` : "DT Boilerplate";
+      const collection = await findOrCreateCollection(collectionName);
       console.log("[DT Boilerplate] Collection:", collection.name, "ID:", collection.id);
       const modeId = collection.modes[0].modeId;
       const existingVariables = await figma.variables.getLocalVariablesAsync();

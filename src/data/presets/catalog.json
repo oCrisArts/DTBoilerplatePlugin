@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "defaultPreset": "starttoken",
+  "presets": [
+    {
+      "id": "starttoken",
+      "name": "StartToken",
+      "path": "starttoken/preset.json"
+    },
+    {
+      "id": "bootstrap",
+      "name": "Bootstrap",
+      "path": "bootstrap/preset.json"
+    },
+    {
+      "id": "tailwindcss",
+      "name": "Tailwind CSS",
+      "path": "tailwindcss/preset.json"
+    },
+    {
+      "id": "bulma",
+      "name": "Bulma",
+      "path": "bulma/preset.json"
+    }
+  ]
+}

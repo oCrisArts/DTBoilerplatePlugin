@@ -1,8 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import svgPaths from "@/imports/PluginMockup-9/svg-hj2e820y6j";
-import colorsData from "@/data/colors.json";
-import typographyData from "@/data/typography.json";
-import layoutData from "@/data/layout.json";
+import { loadPreset, catalog } from "@/data/preset-loader";
+import type { Module, Submodule, Variable as DSVar, VariableType as FigmaVarType, Preset } from "@/data/preset-contract/types";
 
 // ── SVG icons from design ─────────────────────────────────────────────────────
 
@@ -91,36 +90,6 @@ function MSym({ name, clampSize = F.ico, color = "#6e6e80" }: { name: string; cl
 
 // ── Data model ────────────────────────────────────────────────────────────────
 
-type FigmaVarType = "COLOR" | "FLOAT" | "STRING";
-
-interface DSVar {
-  id: string;
-  module: string;
-  submodule: string;
-  name: string;
-  figmaName: string;
-  type: FigmaVarType;
-  value: string | number | { r: number; g: number; b: number; a: number };
-  unit?: string;
-  displayValue: string;
-  preview?: string;
-  icon?: string;
-}
-
-interface Submodule {
-  id: string;
-  label: string;
-  icon: string;
-  variables: DSVar[];
-}
-
-interface Module {
-  module: string;
-  label: string;
-  tabIcon: string;
-  submodules: Submodule[];
-}
-
 interface VariablePayload {
   id: string;
   module: string;
@@ -135,7 +104,12 @@ interface VariablePayload {
   icon?: string;
 }
 
-const DATA = [colorsData, typographyData, layoutData] as Module[];
+type Screen = 'preset-selector' | 'colors' | 'typography' | 'layout';
+
+interface PresetState {
+  preset: Preset;
+  modules: Module[];
+}
 
 // ── Components ────────────────────────────────────────────────────────────────
 
@@ -171,6 +145,15 @@ function ColorTokenRow({ v, onValueChange }: { v: DSVar; onValueChange: (name: s
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onClick={() => colorInputRef.current?.click()}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          colorInputRef.current?.click();
+        }
+      }}
+      tabIndex={0}
+      role="button"
+      aria-label={`Edit color ${v.name}`}
     >
       <div className="relative rounded-[4px] shrink-0" style={{ width: H.swatch, height: H.swatch, background: displayColor }}>
         <div aria-hidden className="absolute border border-[rgba(0,0,0,0.05)] border-solid inset-0 pointer-events-none rounded-[4px]" />
@@ -183,6 +166,7 @@ function ColorTokenRow({ v, onValueChange }: { v: DSVar; onValueChange: (name: s
           className="absolute opacity-0 inset-0 w-full h-full cursor-pointer"
           style={{ padding: 0, border: 0 }}
           title={`Set value for ${v.name}`}
+          aria-label={`Color picker for ${v.name}`}
         />
       </div>
       <span className="flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[#0c0c0d] not-italic" style={{ fontFamily: "'Source Sans 3', sans-serif", fontSize: F.xs }}>
@@ -221,6 +205,15 @@ function GenericTokenRow({ v, onValueChange }: { v: DSVar; onValueChange: (name:
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onClick={() => !editing && setEditing(true)}
+      onKeyDown={(e) => {
+        if ((e.key === 'Enter' || e.key === ' ') && !editing) {
+          e.preventDefault();
+          setEditing(true);
+        }
+      }}
+      tabIndex={0}
+      role="button"
+      aria-label={`Edit ${v.name}`}
     >
       <div className="relative rounded-[4px] shrink-0 flex items-center justify-center" style={{ width: H.swatch, height: H.swatch }}>
         <div aria-hidden className="absolute border border-[rgba(0,0,0,0.05)] border-solid inset-0 pointer-events-none rounded-[4px]" />
@@ -242,6 +235,7 @@ function GenericTokenRow({ v, onValueChange }: { v: DSVar; onValueChange: (name:
           onClick={(e) => e.stopPropagation()}
           className="bg-white border border-[#5e6ad2] rounded-[4px] text-[#0c0c0d] outline-none shrink-0"
           style={{ fontFamily: "'Source Sans 3', sans-serif", fontSize: F.xs, width: "clamp(5rem, 10vw, 8rem)", padding: "0.2em 0.5em" }}
+          aria-label={`Edit value for ${v.name}`}
         />
       ) : hovered ? (
         <span className="shrink-0 rounded-[4px] bg-white border border-[rgba(0,0,0,0.08)] text-[#6e6e80] whitespace-nowrap" style={{ fontFamily: "'Source Sans 3', sans-serif", fontSize: F.xxs, lineHeight: 1.4, padding: "0.15em 0.45em" }}>
@@ -257,7 +251,12 @@ function SubmoduleSection({ moduleId, sub, isOpen, onToggle, query, values, onVa
 
   return (
     <div className="bg-[#fafafa] shrink-0 w-full">
-      <button onClick={onToggle} className="w-full flex items-center gap-[8px] px-[12px] relative cursor-pointer bg-transparent border-0 text-left" style={{ minHeight: H.section }}>
+      <button 
+        onClick={onToggle} 
+        className="w-full flex items-center gap-[8px] px-[12px] relative cursor-pointer bg-transparent border-0 text-left" 
+        style={{ minHeight: H.section }}
+        aria-expanded={isOpen}
+      >
         <div aria-hidden className="absolute border-[#eee6e6] border-solid border-t inset-0 pointer-events-none" />
         <MSym name={sub.icon} clampSize={F.ico_xs} color={isOpen ? "#5e6ad2" : "#6e6e80"} />
         <span className="flex-1 font-medium whitespace-nowrap" style={{ fontFamily: "'Source Sans 3', sans-serif", fontSize: F.xs, color: isOpen ? "#5e6ad2" : "#6e6e80" }}>{sub.label}</span>
@@ -299,16 +298,183 @@ function ModulePanel({ module, query, values, onValueChange }: { module: Module;
   );
 }
 
-function PluginHeader() {
+function TypographyConfigPanel({ 
+  configuration, 
+  variables, 
+  values, 
+  onValueChange, 
+  onGenerateScale 
+}: { 
+  configuration: any; 
+  variables: DSVar[]; 
+  values: Record<string, string>; 
+  onValueChange: (key: string, val: string) => void; 
+  onGenerateScale: () => void;
+}) {
+  const getVariableById = (id: string) => variables.find(v => v.id === id);
+  
+  const renderSelectField = (label: string, configKey: string) => {
+    const config = configuration[configKey];
+    if (!config || !config.default) return null;
+    
+    const defaultVar = getVariableById(config.default);
+    const currentValue = values[config.default] ?? defaultVar?.displayValue;
+    const options = config.options || [config.default];
+    
+    return (
+      <div className="mb-4">
+        <label className="block text-[#0c0c0d] font-medium mb-2" style={{ fontSize: F.xs }}>
+          {label}
+        </label>
+        <select
+          value={config.default}
+          onChange={(e) => onValueChange(config.default, e.target.value)}
+          className="w-full bg-white border border-[rgba(0,0,0,0.08)] rounded-[6px] px-3 py-2 outline-none text-[#0c0c0d] focus:border-[#5e6ad2] transition-colors"
+          style={{ fontFamily: "'Source Sans 3', sans-serif", fontSize: F.xs }}
+          aria-label={label}
+        >
+          {options.map((optId: string) => {
+            const optVar = getVariableById(optId);
+            return (
+              <option key={optId} value={optId}>
+                {optVar?.name || optId}
+              </option>
+            );
+          })}
+        </select>
+      </div>
+    );
+  };
+
+  const renderInputField = (label: string, configKey: string) => {
+    const config = configuration[configKey];
+    if (!config || !config.default) return null;
+    
+    const defaultVar = getVariableById(config.default);
+    const currentValue = values[config.default] ?? defaultVar?.displayValue;
+    
+    return (
+      <div className="mb-4">
+        <label className="block text-[#0c0c0d] font-medium mb-2" style={{ fontSize: F.xs }}>
+          {label}
+        </label>
+        <input
+          type="text"
+          value={currentValue}
+          onChange={(e) => onValueChange(config.default, e.target.value)}
+          className="w-full bg-white border border-[rgba(0,0,0,0.08)] rounded-[6px] px-3 py-2 outline-none text-[#0c0c0d] focus:border-[#5e6ad2] transition-colors"
+          style={{ fontFamily: "'Source Sans 3', sans-serif", fontSize: F.xs }}
+          aria-label={label}
+        />
+      </div>
+    );
+  };
+
+  return (
+    <div className="px-[16px] py-[12px]">
+      <h3 className="text-[#0c0c0d] font-semibold mb-4" style={{ fontSize: F.sm }}>
+        Typography Configuration
+      </h3>
+      
+      {renderSelectField("Font Family", "fontFamily")}
+      {renderInputField("Base Size", "baseSize")}
+      
+      {configuration.typeScale && (
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-[#0c0c0d] font-medium" style={{ fontSize: F.xs }}>
+              Type Scale
+            </label>
+            <button
+              onClick={onGenerateScale}
+              className="bg-[#5e6ad2] text-white px-3 py-1 rounded-[4px] text-xs font-medium hover:bg-[#4a5bc7] transition-colors"
+              style={{ fontFamily: "'Source Sans 3', sans-serif" }}
+              aria-label="Generate type scale"
+            >
+              Generate scale
+            </button>
+          </div>
+          <div className="bg-[#f7f7f8] rounded-[6px] p-3">
+            <p className="text-[#6e6e80]" style={{ fontSize: F.xs }}>
+              {configuration.typeScale.steps.length} scale steps defined
+            </p>
+          </div>
+        </div>
+      )}
+      
+      {renderSelectField("Line Height", "lineHeight")}
+    </div>
+  );
+}
+
+function LayoutConfigPanel({ 
+  capabilities, 
+  module, 
+  values, 
+  onValueChange 
+}: { 
+  capabilities: any; 
+  module: Module; 
+  values: Record<string, string>; 
+  onValueChange: (key: string, val: string) => void; 
+}) {
+  const capabilityMap: Record<string, string> = {
+    grid: 'grid',
+    breakpoints: 'breakpoints', 
+    spacing: 'space',
+    radius: 'radius',
+    tokens: 'tokens'
+  };
+
+  const enabledSubmodules = module.submodules.filter(sub => {
+    const capabilityKey = Object.keys(capabilityMap).find(key => capabilityMap[key] === sub.id);
+    return capabilityKey && capabilities[capabilityKey];
+  });
+
+  return (
+    <div className="flex flex-col w-full">
+      {enabledSubmodules.length === 0 ? (
+        <div className="px-[16px] py-[12px]">
+          <p className="text-[#6e6e80] text-center" style={{ fontSize: F.xs }}>
+            No layout capabilities available for this preset.
+          </p>
+        </div>
+      ) : (
+        enabledSubmodules.map((sub) => (
+          <SubmoduleSection 
+            key={sub.id} 
+            moduleId={module.module} 
+            sub={sub} 
+            isOpen={true} 
+            onToggle={() => {}} 
+            query="" 
+            values={values} 
+            onValueChange={onValueChange} 
+            isColorModule={false} 
+          />
+        ))
+      )}
+    </div>
+  );
+}
+
+function PluginHeader({ title, onBack }: { title?: string; onBack?: () => void }) {
   return (
     <div className="bg-[#f7f7f8] relative shrink-0 w-full rounded-tl-[16px] rounded-tr-[16px]">
       <div aria-hidden className="absolute border-[rgba(0,0,0,0.08)] border-b border-solid inset-0 pointer-events-none rounded-tl-[16px] rounded-tr-[16px]" />
       <div className="flex items-center gap-[8px] px-[16px] py-[clamp(0.6rem,1.2vw,1rem)]">
         <div className="flex items-center gap-[6px] flex-1 min-w-0">
+          {onBack && (
+            <button onClick={onBack} className="bg-transparent border-0 cursor-pointer p-0 mr-2 flex items-center justify-center" style={{ width: "clamp(1rem, 2vw, 1.5rem)", height: "clamp(1rem, 2vw, 1.5rem)" }}>
+              <MSym name="arrow_back" clampSize={F.ico_xs} color="#6e6e80" />
+            </button>
+          )}
           <div className="bg-[#0c0c0d] rounded-[4px] shrink-0 flex items-center justify-center" style={{ width: "clamp(1rem, 2vw, 1.5rem)", height: "clamp(1rem, 2vw, 1.5rem)" }}>
             <LogoIcon />
           </div>
-          <span className="font-semibold text-[rgba(12,12,13,0.7)] whitespace-nowrap" style={{ fontFamily: "'Source Sans 3', sans-serif", fontSize: F.sm }}>DT Boilerplate</span>
+          <span className="font-semibold text-[rgba(12,12,13,0.7)] whitespace-nowrap" style={{ fontFamily: "'Source Sans 3', sans-serif", fontSize: F.sm }}>
+            {title || "DT Boilerplate"}
+          </span>
         </div>
         <span className="text-[#6e6e80] whitespace-nowrap shrink-0" style={{ fontFamily: "'Source Sans 3', sans-serif", fontSize: F.xxs }}>v0.1</span>
       </div>
@@ -316,21 +482,49 @@ function PluginHeader() {
   );
 }
 
-function TabBar({ active, onChange }: { active: string; onChange: (id: string) => void }) {
+function PresetSelector({ onSelectPreset }: { onSelectPreset: (presetId: string) => void }) {
   return (
-    <div className="relative shrink-0 w-full">
-      <div aria-hidden className="absolute border-[rgba(0,0,0,0.08)] border-b border-solid inset-0 pointer-events-none" />
-      <div className="flex items-start w-full">
-        {DATA.map((mod) => {
-          const isActive = active === mod.module;
-          return (
-            <button key={mod.module} onClick={() => onChange(mod.module)} className="flex-1 flex flex-col items-center justify-center gap-[0.25em] relative bg-transparent border-0 cursor-pointer py-[clamp(0.5rem,1vw,0.75rem)]" style={{ minHeight: H.tab }}>
-              <div aria-hidden className="absolute border-b-2 border-solid inset-0 pointer-events-none" style={{ borderColor: isActive ? "#5e6ad2" : "transparent" }} />
-              <MSym name={mod.tabIcon} clampSize={F.ico} color={isActive ? "#5e6ad2" : "#6e6e80"} />
-              <span className="font-medium text-center whitespace-nowrap" style={{ fontFamily: "'Source Sans 3', sans-serif", fontSize: F.xs, color: isActive ? "#5e6ad2" : "#6e6e80" }}>{mod.label}</span>
+    <div className="flex flex-col w-full h-full">
+      <div className="flex-1 overflow-y-auto px-[16px] py-[12px]">
+        <h2 className="text-[#0c0c0d] font-semibold mb-3" style={{ fontFamily: "'Source Sans 3', sans-serif", fontSize: F.sm }}>
+          Choose a preset
+        </h2>
+        <p className="text-[#6e6e80] mb-6" style={{ fontFamily: "'Source Sans 3', sans-serif", fontSize: F.xs, lineHeight: 1.45 }}>
+          Select a framework preset to start configuring your design system variables.
+        </p>
+        
+        <div className="flex flex-col gap-3">
+          {catalog.presets.map((preset) => (
+            <button
+              key={preset.id}
+              onClick={() => onSelectPreset(preset.id)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onSelectPreset(preset.id);
+                }
+              }}
+              className="relative bg-white border border-[rgba(0,0,0,0.08)] rounded-[8px] p-4 cursor-pointer hover:border-[#5e6ad2] transition-colors text-left"
+              tabIndex={0}
+              aria-label={`Select ${preset.name} preset`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="bg-[#f7f7f8] rounded-[6px] flex items-center justify-center shrink-0" style={{ width: "clamp(2rem, 4vw, 2.5rem)", height: "clamp(2rem, 4vw, 2.5rem)" }}>
+                  <MSym name="grid_view" clampSize={F.ico} color="#6e6e80" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-[#0c0c0d] font-semibold mb-1" style={{ fontFamily: "'Source Sans 3', sans-serif", fontSize: F.sm }}>
+                    {preset.name}
+                  </h3>
+                  <p className="text-[#6e6e80] truncate" style={{ fontFamily: "'Source Sans 3', sans-serif", fontSize: F.xs }}>
+                    Official framework defaults
+                  </p>
+                </div>
+                <MSym name="chevron_right" clampSize={F.ico_xs} color="#6e6e80" />
+              </div>
             </button>
-          );
-        })}
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -348,6 +542,57 @@ function GlobalSearch({ value, onChange }: { value: string; onChange: (v: string
   );
 }
 
+function ProgressStepper({ currentStep, totalSteps, onStepClick }: { currentStep: number; totalSteps: number; onStepClick: (step: number) => void }) {
+  const steps = ['Colors', 'Typography', 'Layout'];
+  
+  return (
+    <div className="relative shrink-0 w-full">
+      <div aria-hidden className="absolute border-[rgba(0,0,0,0.08)] border-b border-solid inset-0 pointer-events-none" />
+      <div className="flex items-start w-full">
+        {steps.map((step, index) => {
+          const isActive = currentStep === index;
+          const isCompleted = currentStep > index;
+          const canNavigate = isCompleted || currentStep === index;
+          return (
+            <button 
+              key={step} 
+              onClick={() => canNavigate && onStepClick(index)}
+              disabled={!canNavigate}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  if (canNavigate) onStepClick(index);
+                }
+              }}
+              className="flex-1 flex flex-col items-center justify-center gap-[0.25em] relative bg-transparent border-0 cursor-pointer py-[clamp(0.5rem,1vw,0.75rem)] disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[#5e6ad2] focus:ring-inset"
+              style={{ minHeight: H.tab }}
+              aria-label={`Go to ${step} step`}
+              aria-current={isActive ? 'step' : undefined}
+            >
+              <div aria-hidden className="absolute border-b-2 border-solid inset-0 pointer-events-none" style={{ borderColor: isActive ? "#5e6ad2" : "transparent" }} />
+              <div className="flex items-center justify-center rounded-full" style={{ 
+                width: "clamp(1.2rem, 2vw, 1.5rem)", 
+                height: "clamp(1.2rem, 2vw, 1.5rem)",
+                background: isActive ? "#5e6ad2" : isCompleted ? "#0c0c0d" : "transparent",
+                border: "1px solid #6e6e80"
+              }}>
+                {isCompleted ? (
+                  <MSym name="check" clampSize={F.ico_xs} color="white" />
+                ) : (
+                  <span style={{ fontFamily: "'Source Sans 3', sans-serif", fontSize: F.xxs, color: isActive ? "white" : "#6e6e80" }}>
+                    {index + 1}
+                  </span>
+                )}
+              </div>
+              <span className="font-medium text-center whitespace-nowrap" style={{ fontFamily: "'Source Sans 3', sans-serif", fontSize: F.xs, color: isActive ? "#5e6ad2" : isCompleted ? "#0c0c0d" : "#6e6e80" }}>{step}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function PluginFooter({ count, onGenerate }: { count: number; onGenerate: () => void }) {
   return (
     <div className="relative shrink-0 w-full">
@@ -357,7 +602,56 @@ function PluginFooter({ count, onGenerate }: { count: number; onGenerate: () => 
         <div className="pt-[10px] w-full">
           <button onClick={onGenerate} className="bg-[#0c0c0d] rounded-[8px] w-full flex items-center justify-center gap-[6px] cursor-pointer border-0 hover:bg-[#1a1a1b] transition-colors" style={{ minHeight: H.btn }}>
             <GenerateSvgIcon />
-            <span className="font-semibold text-[#fafafa] whitespace-nowrap" style={{ fontFamily: "'Source Sans 3', sans-serif", fontSize: F.sm }}>Generate Variables</span>
+            <span className="font-semibold text-[#fafafa] whitespace-nowrap" style={{ fontFamily: "'Source Sans 3', sans-serif", fontSize: F.sm }}>Generate {count} variables</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ConfirmSwitchModal({ 
+  currentPreset, 
+  newPreset, 
+  onConfirm, 
+  onCancel 
+}: { 
+  currentPreset: string; 
+  newPreset: string; 
+  onConfirm: () => void; 
+  onCancel: () => void;
+}) {
+  return (
+    <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/50 backdrop-blur-sm px-[24px]">
+      <div className="bg-white rounded-[16px] shadow-lg border border-gray-200 w-full max-w-md p-6" style={{ fontFamily: "'Source Sans 3', sans-serif" }}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="m-0 text-[#0c0c0d] font-semibold" style={{ fontSize: F.sm }}>Switch Preset?</h2>
+          <button 
+            onClick={onCancel}
+            className="text-gray-500 hover:text-gray-700 transition-colors bg-transparent border-0 cursor-pointer"
+          >
+            <MSym name="close" clampSize={F.ico} color="#6e6e80" />
+          </button>
+        </div>
+
+        <p className="text-[#6e6e80] mb-6" style={{ fontSize: F.xs, lineHeight: 1.45 }}>
+          You have unsaved changes in <strong>{currentPreset}</strong>. Switching to <strong>{newPreset}</strong> will discard these changes. Do you want to continue?
+        </p>
+
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            className="flex-1 bg-[#f7f7f8] border border-gray-200 rounded-lg py-3 text-[#0c0c0d] font-semibold hover:bg-[#e5e5e7] transition-colors"
+            style={{ fontSize: F.sm }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="flex-1 bg-[#0c0c0d] rounded-lg py-3 text-[#fafafa] font-semibold hover:bg-[#1a1a1b] transition-colors"
+            style={{ fontSize: F.sm }}
+          >
+            Switch Preset
           </button>
         </div>
       </div>
@@ -490,28 +784,119 @@ function UnlockModal({
 // ── Root ──────────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState("colors");
+  const [currentScreen, setCurrentScreen] = useState<Screen>('preset-selector');
+  const [currentStep, setCurrentStep] = useState(0);
   const [query, setQuery] = useState("");
   const [values, setValues] = useState<Record<string, string>>({});
   const [showUnlockModal, setShowUnlockModal] = useState(false);
+  const [showConfirmSwitch, setShowConfirmSwitch] = useState(false);
+  const [pendingPresetId, setPendingPresetId] = useState<string | null>(null);
+  const [generatedScale, setGeneratedScale] = useState<Record<string, string>>({});
+  
+  const [presetState, setPresetState] = useState<PresetState>(() => {
+    const loaded = loadPreset(catalog.defaultPreset);
+    return {
+      preset: loaded.preset,
+      modules: loaded.modules
+    };
+  });
 
-  const activeModule = DATA.find((m) => m.module === activeTab)!;
-  const totalVars = DATA.reduce((acc, module) => acc + module.submodules.reduce((subAcc, s) => subAcc + s.variables.length, 0), 0);
+  const activeModule = presetState.modules.find((m) => m.module === ['colors', 'typography', 'layout'][currentStep]);
+  const totalVars = presetState.modules.reduce((acc, module) => acc + module.submodules.reduce((subAcc, s) => subAcc + s.variables.length, 0), 0);
+  const hasUnsavedChanges = Object.keys(values).length > 0 || Object.keys(generatedScale).length > 0;
 
-  const handleTabChange = (id: string) => {
-    setActiveTab(id);
+  const handlePresetSelect = (presetId: string) => {
+    if (hasUnsavedChanges && presetState.preset.id !== presetId) {
+      setPendingPresetId(presetId);
+      setShowConfirmSwitch(true);
+    } else {
+      loadPresetData(presetId);
+    }
+  };
+
+  const loadPresetData = (presetId: string) => {
+    const loaded = loadPreset(presetId);
+    setPresetState({
+      preset: loaded.preset,
+      modules: loaded.modules
+    });
+    setValues({});
+    setGeneratedScale({});
+    setCurrentScreen('colors');
+    setCurrentStep(0);
     setQuery("");
+  };
+
+  const handleStepChange = (step: number) => {
+    if (step <= currentStep) {
+      setCurrentStep(step);
+      setQuery("");
+    }
+  };
+
+  const handleNextStep = () => {
+    if (currentStep < 2) {
+      setCurrentStep(prev => prev + 1);
+      setQuery("");
+    }
+  };
+
+  const handleBackToSelector = () => {
+    if (hasUnsavedChanges) {
+      setPendingPresetId(null);
+      setShowConfirmSwitch(true);
+    } else {
+      setCurrentScreen('preset-selector');
+    }
+  };
+
+  const handleConfirmSwitch = () => {
+    setShowConfirmSwitch(false);
+    if (pendingPresetId) {
+      loadPresetData(pendingPresetId);
+      setPendingPresetId(null);
+    } else {
+      setCurrentScreen('preset-selector');
+    }
   };
 
   const handleValueChange = (key: string, val: string) => {
     setValues((prev) => ({ ...prev, [key]: val }));
   };
 
+  const handleGenerateScale = () => {
+    const typographyModule = presetState.modules.find(m => m.module === 'typography');
+    if (!typographyModule) return;
+    
+    const config = typographyModule.configuration;
+    if (!config?.typeScale?.steps) return;
+    
+    // Calculate scale based on base size and type scale steps
+    const baseSizeConfig = config.baseSize;
+    const baseSizeVar = typographyModule.submodules
+      .flatMap(s => s.variables)
+      .find(v => v.id === baseSizeConfig?.default);
+    
+    if (!baseSizeVar) return;
+    
+    const baseSize = parseFloat(baseSizeVar.displayValue) || 16;
+    const scale = [1, 1.2, 1.44, 1.728, 2.074, 2.488, 2.986, 3.583, 4.3, 5.16, 6.19]; // Common major third scale
+    
+    const newScaleValues: Record<string, string> = {};
+    config.typeScale.steps.forEach((stepId: string, index: number) => {
+      const size = (baseSize * scale[index % scale.length]).toFixed(1);
+      newScaleValues[stepId] = `${size}px`;
+    });
+    
+    setGeneratedScale(newScaleValues);
+    setValues(prev => ({ ...prev, ...newScaleValues }));
+  };
+
   const getVariablePayload = (): VariablePayload[] => {
-    return DATA.flatMap((module) =>
+    return presetState.modules.flatMap((module) =>
       module.submodules.flatMap((submodule) =>
         submodule.variables.map((v) => {
-          const editedValue = values[v.id];
+          const editedValue = values[v.id] || generatedScale[v.id];
           const value = editedValue ?? v.value;
           const displayValue = editedValue ?? v.displayValue;
 
@@ -539,6 +924,7 @@ export default function App() {
         pluginMessage: {
           type: "generate-variables",
           tokens: getVariablePayload(),
+          presetName: presetState.preset.metadata.name,
         },
       },
       "*"
@@ -577,25 +963,65 @@ export default function App() {
     return () => window.removeEventListener("message", handlePluginMessage);
   }, []);
 
+  const getHeaderTitle = () => {
+    if (currentScreen === 'preset-selector') return "DT Boilerplate";
+    return presetState.preset.metadata.name;
+  };
+
   return (
-    <div className="w-screen h-screen flex flex-col overflow-hidden bg-white">
+    <div className="w-[420px] h-[747px] flex flex-col overflow-hidden bg-white">
       <div aria-hidden className="absolute border border-[rgba(0,0,0,0.08)] border-solid inset-0 pointer-events-none z-10" />
-      <PluginHeader />
-      <TabBar active={activeTab} onChange={handleTabChange} />
+      <PluginHeader 
+        title={getHeaderTitle()} 
+        onBack={currentScreen !== 'preset-selector' ? handleBackToSelector : undefined} 
+      />
 
-      <GlobalSearch value={query} onChange={setQuery} />
+      {currentScreen === 'preset-selector' ? (
+        <PresetSelector onSelectPreset={handlePresetSelect} />
+      ) : (
+        <>
+          <ProgressStepper currentStep={currentStep} totalSteps={3} onStepClick={handleStepChange} />
+          <GlobalSearch value={query} onChange={setQuery} />
 
-      <div className="flex-1 overflow-y-auto min-h-0 bg-white flex flex-col">
-        <ModulePanel
-          key={activeTab}
-          module={activeModule}
-          query={query}
-          values={values}
-          onValueChange={handleValueChange}
+          <div className="flex-1 overflow-y-auto min-h-0 bg-white flex flex-col">
+            {activeModule && currentStep === 1 && activeModule.module === 'typography' ? (
+              <TypographyConfigPanel
+                configuration={activeModule.configuration}
+                variables={activeModule.submodules.flatMap(s => s.variables)}
+                values={values}
+                onValueChange={handleValueChange}
+                onGenerateScale={handleGenerateScale}
+              />
+            ) : currentStep === 2 && activeModule.module === 'layout' ? (
+              <LayoutConfigPanel
+                capabilities={presetState.preset.capabilities.layout}
+                module={activeModule}
+                values={values}
+                onValueChange={handleValueChange}
+              />
+            ) : (
+              <ModulePanel
+                key={currentStep}
+                module={activeModule}
+                query={query}
+                values={values}
+                onValueChange={handleValueChange}
+              />
+            )}
+          </div>
+
+          <PluginFooter count={totalVars} onGenerate={handleGenerateVariables} />
+        </>
+      )}
+      
+      {showConfirmSwitch && (
+        <ConfirmSwitchModal
+          currentPreset={presetState.preset.metadata.name}
+          newPreset={pendingPresetId ? catalog.presets.find(p => p.id === pendingPresetId)?.name || 'new preset' : 'preset selector'}
+          onConfirm={handleConfirmSwitch}
+          onCancel={() => setShowConfirmSwitch(false)}
         />
-      </div>
-
-      <PluginFooter count={totalVars} onGenerate={handleGenerateVariables} />
+      )}
       
       {showUnlockModal && (
         <UnlockModal

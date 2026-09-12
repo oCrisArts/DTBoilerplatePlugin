@@ -22,6 +22,7 @@ type TokenPayload = {
 type GenerateVariablesMessage = {
   type: "generate-variables";
   tokens: TokenPayload[];
+  presetName?: string;
 };
 
 type ProcessUnlockMessage = {
@@ -70,7 +71,7 @@ declare const __html__: string;
 
 figma.showUI(__html__, {
   width: 420,
-  height: 640,
+  height: 747,
   themeColors: true,
 });
 
@@ -100,7 +101,7 @@ figma.ui.onmessage = async (message: PluginMessage) => {
       return;
     }
 
-    const result = await generateVariables(message.tokens);
+    const result = await generateVariables(message.tokens, message.presetName);
 
     if (result.count === 0) {
       figma.notify("No variables were created or updated.", { error: true, timeout: 6000 });
@@ -138,10 +139,11 @@ figma.ui.onmessage = async (message: PluginMessage) => {
   }
 };
 
-async function generateVariables(tokens: TokenPayload[]) {
+async function generateVariables(tokens: TokenPayload[], presetName: string = "DT Boilerplate") {
   try {
-    // Step 1: Find or create the collection
-    const collection = await findOrCreateCollection("DT Boilerplate");
+    // Step 1: Find or create the collection with preset-specific name
+    const collectionName = presetName ? `StartToken / ${presetName}` : "DT Boilerplate";
+    const collection = await findOrCreateCollection(collectionName);
     console.log("[DT Boilerplate] Collection:", collection.name, "ID:", collection.id);
 
     const modeId = collection.modes[0].modeId;
