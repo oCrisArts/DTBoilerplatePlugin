@@ -141,8 +141,8 @@ figma.ui.onmessage = async (message: PluginMessage) => {
 
 async function generateVariables(tokens: TokenPayload[], presetName: string = "DT Boilerplate") {
   try {
-    // Step 1: Find or create the collection with preset-specific name
-    const collectionName = presetName ? `StartToken / ${presetName}` : "DT Boilerplate";
+    // Step 1: Find or create the collection with Theme-specific name
+    const collectionName = presetName ? `StartToken / Theme: ${presetName}` : "DT Boilerplate";
     const collection = await findOrCreateCollection(collectionName);
     console.log("[DT Boilerplate] Collection:", collection.name, "ID:", collection.id);
 

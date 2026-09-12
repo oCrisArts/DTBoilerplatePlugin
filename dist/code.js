@@ -877,7 +877,7 @@
   };
   async function generateVariables(tokens, presetName = "DT Boilerplate") {
     try {
-      const collectionName = presetName ? `StartToken / ${presetName}` : "DT Boilerplate";
+      const collectionName = presetName ? `StartToken / Theme: ${presetName}` : "DT Boilerplate";
       const collection = await findOrCreateCollection(collectionName);
       console.log("[DT Boilerplate] Collection:", collection.name, "ID:", collection.id);
       const modeId = collection.modes[0].modeId;
