@@ -137,17 +137,79 @@
     root.x = 0;
     root.y = 0;
     page.appendChild(root);
-    root.appendChild(await createColorPaletteBoard(tokens, variablesByName));
+    const isMaterial = tokens.length > 0 && tokens.every((token) => token.name.startsWith("--md-"));
+    if (isMaterial) {
+      for (const board of await createMaterialBoards(tokens, variablesByName)) root.appendChild(board);
+    } else {
+      root.appendChild(await createColorPaletteBoard(tokens, variablesByName));
+      root.appendChild(await createSemanticColorsBoard(tokens, variablesByName));
+      root.appendChild(await createColorTokensBoard(tokens, variablesByName));
+      root.appendChild(await createTypographyBoard(tokens, variablesByName));
+      root.appendChild(await createLayoutBoard(tokens, variablesByName));
+    }
     const firstBoard = root.children[0];
-    root.appendChild(await createSemanticColorsBoard(tokens, variablesByName));
-    root.appendChild(await createColorTokensBoard(tokens, variablesByName));
-    root.appendChild(await createTypographyBoard(tokens, variablesByName));
-    root.appendChild(await createLayoutBoard(tokens, variablesByName));
     if (firstBoard) {
       figma.currentPage.selection = [firstBoard];
       figma.viewport.scrollAndZoomIntoView([firstBoard]);
     }
     return { pageName: DOC_PAGE_NAME, frameId: root.id };
+  }
+  async function createMaterialBoards(tokens, variablesByName) {
+    const definitions = [
+      { module: "colors", title: "Colors", description: "Material Design 3 system colors. Official namespaces with the current customized values.", groups: ["primary", "secondary", "tertiary", "error", "surface", "inverse", "outline", "utility"] },
+      { module: "typography", title: "Typography", description: "Material Design 3 typeface references and the Display, Headline, Title, Body and Label roles.", groups: ["family", "display", "headline", "title", "body", "label"] },
+      { module: "layout", title: "Layout", description: "Material Design 3 system shapes.", groups: ["radius"] }
+    ];
+    const boards = [];
+    for (const definition of definitions) {
+      const board = createBoard(definition.title, definition.description);
+      for (const group of definition.groups) {
+        const members = tokens.filter((token) => token.module === definition.module && token.submodule === group);
+        if (!members.length) continue;
+        const label = group === "family" ? "Typeface" : group === "radius" ? "Shape" : group[0].toUpperCase() + group.slice(1);
+        board.appendChild(await createSectionTitle(label));
+        board.appendChild(await createTokenTable(
+          ["Preview", "Variable Name", "Value", "Variable Path"],
+          [240, 480, 200, 808],
+          members,
+          async (token) => [
+            definition.module === "colors" ? await createColorSwatchCell(token, variablesByName) : definition.module === "layout" ? await createLayoutPreviewCell(token, variablesByName) : await createMaterialTypePreview(token, tokens),
+            await createTextCell(token.name, "text", 480, 112, 14, "medium"),
+            await createTextCell(getDisplayValue(token), "text", 200, 112, 14, "mono"),
+            await createTextCell(token.figmaName, "muted", 808, 112, 14, "mono")
+          ],
+          112
+        ));
+      }
+      boards.push(board);
+    }
+    return boards;
+  }
+  async function createMaterialTypePreview(token, tokens) {
+    var _a, _b;
+    const cell = createCellFrame(240, 112);
+    cell.clipsContent = true;
+    const role = token.name.replace(/-(font|size|line-height|weight(?:-prominent)?)$/, "");
+    const lookup = (suffix) => tokens.find((item) => item.name === `${role}-${suffix}`);
+    const font = lookup("font");
+    const size = lookup("size");
+    const line = lookup("line-height");
+    const weight = token.name.endsWith("-weight-prominent") ? token : lookup("weight");
+    const toPx = (item) => {
+      var _a2;
+      return ((_a2 = getNumericValue(item)) != null ? _a2 : 16) * (item.unit === "rem" ? 16 : 1);
+    };
+    const family = font ? getDisplayValue(font) : token.type === "STRING" ? getDisplayValue(token) : "Roboto";
+    const numericWeight = weight ? (_a = getNumericValue(weight)) != null ? _a : 400 : token.type === "FLOAT" ? (_b = getNumericValue(token)) != null ? _b : 400 : 400;
+    const style = numericWeight >= 700 ? "Bold" : numericWeight >= 500 ? "Medium" : "Regular";
+    const text = createText("Aa", 16, 24, "regular");
+    text.fontName = await loadFontSafely(family, style);
+    text.fontSize = size ? toPx(size) : 20;
+    text.lineHeight = line ? { unit: "PIXELS", value: toPx(line) } : { unit: "AUTO" };
+    text.textAutoResize = "TRUNCATE";
+    text.resize(224, 96);
+    cell.appendChild(text);
+    return cell;
   }
   async function createColorPaletteBoard(tokens, variablesByName) {
     const board = createBoard(

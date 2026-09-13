@@ -80,7 +80,29 @@ export function changedVariable(v: Variable, displayValue: string): Variable {
   return { ...v, value, displayValue, ...(v.type === 'COLOR' ? { preview: displayValue } : {}) };
 }
 export function customize(loaded: LoadedPreset, edits: Record<string,string>): LoadedPreset {
+  if (loaded.preset.id === 'materialdesign') edits = materialReferenceEdits(loaded, edits);
   return { preset: loaded.preset, modules: loaded.modules.map(m=>({ ...m, submodules:m.submodules.map(s=>({...s,variables:s.variables.map(v=>edits[v.id] === undefined ? v : changedVariable(v,edits[v.id]))})) })) };
+}
+
+// The existing font picker edits brand. Material's brand/plain references and
+// role dependencies are resolved as values before the existing generation flow.
+// An explicitly edited role or plain typeface keeps its own customized value.
+function materialReferenceEdits(loaded: LoadedPreset, edits: Record<string,string>) {
+  const resolved = { ...edits };
+  const brand = 'typography.family.--md-ref-typeface-brand';
+  const plain = 'typography.family.--md-ref-typeface-plain';
+  if (resolved[brand] !== undefined && resolved[plain] === undefined) resolved[plain] = resolved[brand];
+  const variables = new Map(loaded.modules.flatMap(variablesOf).map(v => [v.id, v]));
+  const resolve = (v: Variable): string | undefined => {
+    if (resolved[v.id] !== undefined) return resolved[v.id];
+    if (!v.reference) return undefined;
+    const target = variables.get(v.reference);
+    const value = target && resolve(target);
+    if (value !== undefined) resolved[v.id] = value;
+    return value;
+  };
+  variables.forEach(resolve);
+  return resolved;
 }
 export function colorFamilies(variables: Variable[]) {
   const groups = new Map<string,Variable[]>();

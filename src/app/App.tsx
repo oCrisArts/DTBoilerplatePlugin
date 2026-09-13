@@ -10,8 +10,9 @@ import brand from '@/assets/starttokens.svg?inline';
 import bootstrap from '@/assets/bootstrap.svg?inline';
 import tailwindcss from '@/assets/tailwindcss.svg?inline';
 import bulma from '@/assets/bulma.svg?inline';
+import materialdesign from '@/assets/materialdesign.svg?inline';
 
-const logos: Record<string,string> = { bootstrap, tailwindcss, bulma, starttoken: brand };
+const logos: Record<string,string> = { bootstrap, tailwindcss, materialdesign, bulma, starttoken: brand };
 const subtitles = {
   colors: 'Customize color values and preview each framework scale.',
   typography: 'Set type values and regenerate the framework scale.',
@@ -53,6 +54,7 @@ export default function App() {
     parent.postMessage({pluginMessage:{type:'generate-variables',tokens:customized.modules.flatMap(variablesOf),presetName:source.preset.metadata.name}},'*');
   };
   return <div className="relative flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden bg-background font-sans text-foreground">
+    {selected && source.preset.id === 'materialdesign' && <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap"/>}
     <header className="flex h-[60px] shrink-0 items-center justify-between gap-3 bg-card px-4"><div className="flex min-w-0 items-center gap-2"><img src={brand} alt="" className="h-[30px] w-[19px] shrink-0"/><span className="text-xl font-normal">StartTokens</span></div><span className="text-[13px] text-muted-foreground">v0.1</span></header>
     {selected&&<><div className="z-10 flex min-h-[60px] shrink-0 items-center gap-2 bg-card px-4 py-2 shadow-[0_5px_12px_#0000001a]"><button className="-ml-2 flex size-9 shrink-0 items-center justify-center rounded hover:bg-secondary" aria-label="Back to presets" onClick={()=>setSelected(false)}><Icon name="arrow_back" className="text-muted-foreground"/></button><img src={logos[source.preset.id]} alt="" className="size-10 shrink-0 object-contain"/><span className="min-w-0 break-words text-base">{source.preset.metadata.name}</span></div>
     <div role="tablist" aria-label="Token categories" className="flex shrink-0 border-b border-border">{source.modules.map((m,index)=><button key={m.module} id={`tab-${m.module}`} role="tab" aria-selected={activeTab===m.module} aria-controls={`panel-${m.module}`} tabIndex={activeTab===m.module?0:-1} onClick={()=>changeTab(m.module)} onKeyDown={e=>{

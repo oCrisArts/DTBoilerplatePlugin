@@ -4,6 +4,7 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
+    "test:materialdesign": "node --test scripts/materialdesign.test.mjs",
     "build": "node scripts/sync-variable-data.mjs && vite build && node scripts/inline-figma-ui.mjs && esbuild src/plugin/code.ts --bundle --format=iife --target=es2017 --outfile=dist/code.js",
     "dev": "vite"
   },
