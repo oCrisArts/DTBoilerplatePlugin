@@ -528,17 +528,6 @@
       }
       return;
     }
-    if (message.type === "validate-font") {
-      try {
-        const fonts = await figma.listAvailableFontsAsync();
-        if (!fonts.some((f) => f.fontName.family === message.font.family && f.fontName.style === message.font.style)) throw Error("Font is not available in Figma.");
-        await figma.loadFontAsync(message.font);
-        figma.ui.postMessage({ type: "font-validation-result", requestId: message.requestId, ok: true });
-      } catch (error) {
-        figma.ui.postMessage({ type: "font-validation-result", requestId: message.requestId, ok: false, error: String(error) });
-      }
-      return;
-    }
     if (message.type === "process-unlock") {
       const licenca = await obterEstadoLicenca(figma.clientStorage, void 0, message.email);
       if (licenca.premium) {
@@ -598,6 +587,16 @@
       const variablesInCollection = existingVariables.filter(
         (v) => v.variableCollectionId === collection.id
       );
+      if (presetName === "StartToken" && tokens.some((t) => t.figmaName === "Typography/Family/font-family-primary")) {
+        const legacy = variablesInCollection.find((v) => v.name === "Typography/Family/font-family-sans");
+        if (legacy) {
+          const primary = variablesInCollection.find((v) => v.name === "Typography/Family/font-family-primary");
+          if (primary) {
+            legacy.remove();
+            variablesInCollection.splice(variablesInCollection.indexOf(legacy), 1);
+          } else legacy.name = "Typography/Family/font-family-primary";
+        }
+      }
       console.log("[DT Boilerplate] Existing variables in collection:", variablesInCollection.length);
       let created = 0;
       let updated = 0;

@@ -34,7 +34,7 @@ type ProcessUnlockMessage = {
   email: string;
 };
 
-type PluginMessage = GenerateVariablesMessage | ProcessUnlockMessage | {type:'list-fonts'} | {type:'validate-font';font:{family:string;style:string};requestId:string} | {type:'insert-icon';svg:string;name:string;size:number};
+type PluginMessage = GenerateVariablesMessage | ProcessUnlockMessage | {type:'list-fonts'} | {type:'insert-icon';svg:string;name:string;size:number};
 
 type VariableType = "COLOR" | "FLOAT" | "STRING";
 
@@ -47,6 +47,7 @@ type VariableCollection = {
 type Variable = {
   name: string;
   variableCollectionId: string;
+  remove: () => void;
   setValueForMode: (modeId: string, value: unknown) => void;
 };
 
@@ -97,15 +98,6 @@ figma.ui.onmessage = async (message: PluginMessage) => {
   if(message.type==='list-fonts') {
     try { const fonts=await figma.listAvailableFontsAsync();figma.ui.postMessage({type:'available-fonts',fonts:fonts.map(f=>f.fontName)}); }
     catch(error) { figma.ui.postMessage({type:'available-fonts',fonts:[],error:String(error)}); }
-    return;
-  }
-  if(message.type==='validate-font') {
-    try {
-      const fonts=await figma.listAvailableFontsAsync();
-      if(!fonts.some(f=>f.fontName.family===message.font.family&&f.fontName.style===message.font.style))throw Error('Font is not available in Figma.');
-      await figma.loadFontAsync(message.font);
-      figma.ui.postMessage({type:'font-validation-result',requestId:message.requestId,ok:true});
-    } catch(error) { figma.ui.postMessage({type:'font-validation-result',requestId:message.requestId,ok:false,error:String(error)}); }
     return;
   }
   if (message.type === "process-unlock") {
@@ -185,6 +177,14 @@ async function generateVariables(tokens: TokenPayload[], presetName: string = "D
     const variablesInCollection = existingVariables.filter(
       (v: Variable) => v.variableCollectionId === collection.id
     );
+    if (presetName === 'StartToken' && tokens.some(t=>t.figmaName==='Typography/Family/font-family-primary')) {
+      const legacy=variablesInCollection.find(v=>v.name==='Typography/Family/font-family-sans');
+      if(legacy){
+        const primary=variablesInCollection.find(v=>v.name==='Typography/Family/font-family-primary');
+        if(primary){legacy.remove();variablesInCollection.splice(variablesInCollection.indexOf(legacy),1);}
+        else legacy.name='Typography/Family/font-family-primary';
+      }
+    }
     console.log("[DT Boilerplate] Existing variables in collection:", variablesInCollection.length);
 
     let created = 0;

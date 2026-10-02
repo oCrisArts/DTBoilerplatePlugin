@@ -35,14 +35,16 @@ test('canonical icon data and contracts match the offline plugin byte for byte',
     for(const file of readdirSync(target))assert.deepEqual(readFileSync(new URL(file,target)),readFileSync(new URL(canonical+file,import.meta.url)),file);
   }
 });
-test('font protocol lists every Figma font, loads supported choices and rejects unavailable fonts',async()=>{
+test('font protocol lists every face without loading and reports listing errors for retry',async()=>{
   const messages=[],loaded=[];const fonts=[{fontName:{family:'Custom Team Font',style:'Regular'}},{fontName:{family:'Roboto',style:'Bold'}}];
   const figma={showUI(){},ui:{postMessage:m=>messages.push(m)},listAvailableFontsAsync:async()=>fonts,loadFontAsync:async font=>loaded.push(font)};
   const bundle=await build({entryPoints:['src/plugin/code.ts'],bundle:true,write:false,format:'iife'});vm.runInNewContext(bundle.outputFiles[0].text,{figma,__html__:'',console});
   await figma.ui.onmessage({type:'list-fonts'});assert.deepEqual(JSON.parse(JSON.stringify(messages.at(-1).fonts)),fonts.map(f=>f.fontName));
-  await figma.ui.onmessage({type:'validate-font',font:fonts[0].fontName,requestId:'valid'});assert.equal(messages.at(-1).ok,true);assert.equal(loaded.length,1);
-  await figma.ui.onmessage({type:'validate-font',font:{family:'Missing',style:'Regular'},requestId:'invalid'});assert.equal(messages.at(-1).ok,false);assert.equal(loaded.length,1);
-  figma.loadFontAsync=async()=>{throw Error('Font load failed')};await figma.ui.onmessage({type:'validate-font',font:fonts[0].fontName,requestId:'failed'});assert.equal(messages.at(-1).ok,false);
+  assert.equal(loaded.length,0);
+  figma.listAvailableFontsAsync=async()=>{throw Error('Font list failed')};
+  await figma.ui.onmessage({type:'list-fonts'});assert.match(messages.at(-1).error,/Font list failed/);
+  figma.listAvailableFontsAsync=async()=>fonts;
+  await figma.ui.onmessage({type:'list-fonts'});assert.equal(messages.at(-1).fonts.length,2);assert.equal(loaded.length,0);
 });
 test('icon insertion uses the configured size and rejects unsafe SVG or invalid dimensions',async()=>{
   const messages=[],nodes=[];

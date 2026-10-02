@@ -31,6 +31,14 @@ export default function App() {
   const [query,setQuery]=useState('');
   const [ratio,setRatio]=useState(1.25);
   const [fonts,setFonts]=useState<{family:string;style:string}[]>([]);
+  const [fontError,setFontError]=useState('');
+  const [fontsLoading,setFontsLoading]=useState(true);
+  const fontTimer=useRef<ReturnType<typeof setTimeout>>();
+  const requestFonts=()=>{
+    clearTimeout(fontTimer.current);setFontError('');setFontsLoading(true);
+    fontTimer.current=setTimeout(()=>{setFontsLoading(false);setFontError('Unable to load Figma fonts. Please retry.');},15000);
+    parent.postMessage({pluginMessage:{type:'list-fonts'}},'*');
+  };
   const [selectedIcon,setSelectedIcon]=useState('');
   const [pending,setPending]=useState<string|null>(null);
   const [showUnlockModal,setShowUnlockModal]=useState(false);
@@ -53,15 +61,15 @@ export default function App() {
       const message=event.data?.pluginMessage;
       if(message?.type==='icon-inserted')setStatus(`${message.name} inserted.`);
       if(message?.type==='icon-insertion-failed')setStatus(message.error);
-      if(message?.type==='available-fonts'){setFonts(message.fonts);if(message.error)setStatus(message.error);}
+      if(message?.type==='available-fonts'){clearTimeout(fontTimer.current);setFonts(message.fonts||[]);setFontsLoading(false);setFontError(message.error||'');}
       if(message?.type==='variables-generated')setStatus(message.documentationGenerated?'Variables and visual documentation updated.':'Variables updated.');
       if(message?.type==='variables-generation-failed')setStatus(message.error);
       if(message?.type==='unlock-required')setShowUnlockModal(true);
       if(message?.type==='purchase-restored'||message?.type==='redirected-to-checkout')setShowUnlockModal(false);
     };
     window.addEventListener('message',handlePluginMessage);
-    parent.postMessage({pluginMessage:{type:'list-fonts'}},'*');
-    return ()=>window.removeEventListener('message',handlePluginMessage);
+    requestFonts();
+    return ()=>{clearTimeout(fontTimer.current);window.removeEventListener('message',handlePluginMessage);};
   },[]);
   const generate=()=>{
     const icons=customized.modules.find(m=>m.module==='iconography')!;
@@ -85,7 +93,7 @@ export default function App() {
     {!selected?<div className="space-y-4"><h1 className="text-2xl font-medium leading-[1.6]">Welcome</h1><p className="text-lg leading-[1.4]">Choose a preset to customize your design token package.</p><div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,150px),1fr))] gap-4">{catalog.presets.map(p=><button key={p.id} onClick={()=>selectPreset(p.id)} className="flex min-h-[100px] min-w-0 flex-col items-center justify-center gap-2 rounded-lg border border-border bg-card p-2 shadow-[0_5px_12px_#0000001a] transition hover:border-accent hover:bg-secondary active:translate-y-px active:shadow-none"><img src={logos[p.id]} alt="" className="size-10 object-contain"/><span className="text-base font-medium text-muted-foreground">{p.name}</span></button>)}</div></div>:
     <div role="tabpanel" id={`panel-${activeTab}`} aria-labelledby={`tab-${activeTab}`} tabIndex={0} className="min-w-0 outline-none"><p className="text-lg leading-[1.4]">{subtitles[activeTab]}</p><div className={`${fieldClass} my-4`}><img src={searchIcon} width={10} height={10} alt=""/><input aria-label="Search tokens" placeholder="Search tokens..." value={query} onChange={e=>setQuery(e.target.value)} className="w-full min-w-0 bg-transparent py-2 text-[13px] outline-none placeholder:text-muted-foreground"/>{query&&<button aria-label="Clear search" className="flex size-8 shrink-0 items-center justify-center" onClick={()=>setQuery('')}><Icon name="close"/></button>}</div>
     {activeTab==='colors'&&<ColorsPanel key={`${source.preset.id}-colors`} module={module} original={original} query={query} onEdit={apply}/>}
-    {module.module==='typography'&&<TypographyPanel key={`${source.preset.id}-typography`} module={module} query={query} onEdit={apply} fonts={fonts} ratio={ratio} onRatio={setRatio} onGenerate={()=>{const base=variablesOf(module).find(v=>v.id===module.configuration.baseSize.default)!;apply(typeScaleEdits(original as typeof module,pixels(base),ratio));setStatus('Typography scale updated.');}}/>}
+    {module.module==='typography'&&<TypographyPanel key={`${source.preset.id}-typography`} module={module} query={query} onEdit={apply} fonts={fonts} fontError={fontError} fontsLoading={fontsLoading} onRetryFonts={requestFonts} ratio={ratio} onRatio={setRatio} onGenerate={()=>{const base=variablesOf(module).find(v=>v.id===module.configuration.baseSize.default)!;apply(typeScaleEdits(original as typeof module,pixels(base),ratio));setStatus('Typography scale updated.');}}/>}
     {module.module==='iconography'&&<IconographyPanel key={`${source.preset.id}-icons`} module={module} original={original as typeof module} query={query} onEdit={apply} selected={selectedIcon} onSelect={setSelectedIcon}/>}
     {activeTab==='layout'&&<LayoutPanel key={`${source.preset.id}-layout`} module={module} original={original} query={query} onEdit={apply}/>}
     <p role="status" className="text-sm text-accent">{status}</p></div>}
