@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { FontPicker } from './font-picker';
 import type { Module, Variable } from '@/data/preset-contract/types';
 import { ColorField, Icon, Section, TextValue, fieldClass } from './token-controls';
 import { Select, SelectContent, SelectItem, SelectTrigger } from './ui/select';
@@ -30,7 +31,6 @@ export const TYPE_SCALES=[
   {name:'Perfect Fifth',ratio:1.5,description:'Strong hierarchy contrast'},
   {name:'Golden Ratio',ratio:1.618,description:'Classic golden proportion'},
 ];
-const FONTS=[['DM Sans','Sans-serif'],['Inter','Sans-serif'],['Inter Tight','Sans-serif'],['IBM Plex Sans','Sans-serif'],['Instrument Sans','Sans-serif'],['Inconsolata','Monospace'],['Instrument Serif','Serif'],['Inika','Serif']];
 // Preview specimen text is separate from the exact token name shown in its badge.
 function specimen(v: Variable) {
   const text=v.name.match(/^--text-(.+)$/); if(text)return `Text ${text[1]}`;
@@ -39,22 +39,22 @@ function specimen(v: Variable) {
   if(['font-size-base','body-size','p'].includes(v.name))return 'Body text default';
   return 'The quick brown fox';
 }
-export function TypographyPanel({module,query,onEdit,ratio,onRatio,onGenerate}:{module:Extract<Module,{module:'typography'}>;query:string;onEdit:PanelProps['onEdit'];ratio:number;onRatio:(n:number)=>void;onGenerate:()=>void}) {
+export function TypographyPanel({module,query,onEdit,ratio,onRatio,onGenerate,fonts}:{module:Extract<Module,{module:'typography'}>;query:string;onEdit:PanelProps['onEdit'];ratio:number;onRatio:(n:number)=>void;onGenerate:()=>void;fonts:{family:string;style:string}[]}) {
   const id=useId(), vars=variablesOf(module), config=module.configuration;
   const family=vars.find(v=>v.id===config.fontFamily.default)!,base=vars.find(v=>v.id===config.baseSize.default)!,line=vars.find(v=>v.id===config.lineHeight.default)!;
   const selected=TYPE_SCALES.find(s=>s.ratio===ratio)!;
   const steps=vars.filter(v=>config.typeScale.steps.includes(v.id)).sort((a,b)=>pixels(b)-pixels(a));
   const filtered=steps.filter(v=>matches(v,query));
-  return <><Section title="Configuration" icon="palette">
-    <div><label htmlFor={`${id}-font`} className="mb-1 block text-sm text-muted-foreground">Font Family</label><Select value={family.displayValue} onValueChange={value=>onEdit({[family.id]:value})}><SelectTrigger id={`${id}-font`} className={`${fieldClass} justify-between`}><Icon name="text_fields" className="text-accent"/><span className="min-w-0 flex-1 truncate text-left" title={family.displayValue}>{family.displayValue}</span></SelectTrigger><SelectContent className="w-[320px] max-w-[calc(100vw-16px)] rounded-lg p-0" collisionPadding={8}>
-    {!FONTS.some(([name])=>name===family.displayValue)&&<SelectItem value={family.displayValue} className="min-h-[60px] data-[state=checked]:bg-accent data-[state=checked]:text-white"><span className="block max-w-[240px] truncate" title={family.displayValue}>{family.displayValue}</span></SelectItem>}
-    {FONTS.map(([name,category])=><SelectItem key={name} value={name} textValue={name} className="min-h-[60px] px-4 data-[state=checked]:bg-accent data-[state=checked]:text-white"><span className="flex min-w-0 flex-col gap-0.5"><span className="text-[13px]">{name}</span><span className="text-[11px]" style={{fontFamily:`'${name}'`}}>The quick brown fox jumps</span></span><span className="ml-2 rounded bg-card px-1.5 py-0.5 text-[9px] text-muted-foreground">{category}</span></SelectItem>)}</SelectContent></Select></div>
+  const roleToken=(v:Variable,suffix:string)=>vars.find(token=>token.id===v.id.replace(/-size$/,suffix));
+  const specimenFamily=(v:Variable)=>roleToken(v,'-font')?.displayValue||family.displayValue;
+  const specimenLine=(v:Variable)=>{const token=roleToken(v,'-line-height')||line;return token.unit?`${pixels(token)}px`:Number.parseFloat(token.displayValue);};
+  return <><Section title="Font Families" icon="format_shapes">{Object.entries(config.fontRoles).map(([role,control])=>{const token=vars.find(v=>v.id===control.token)!;return <FontPicker key={role} label={control.label} value={token.displayValue} disabled={!control.customizable} fonts={fonts} onChange={value=>onEdit({[token.id]:value})}/>;})}<p className="text-[11px] text-muted-foreground">All fonts available in Figma. Fonts are loaded before applying.</p></Section><div className="space-y-4 pb-4">
     <TextValue label="Base Size (px)" value={String(pixels(base))} numeric min={1} onChange={s=>onEdit({[base.id]:`${Number(s)/(base.unit==='rem'||base.unit==='em'?16:1)}${base.unit||''}`})}/>
     <div><label htmlFor={`${id}-ratio`} className="mb-1 block text-sm text-muted-foreground">Type Scale</label><Select value={String(ratio)} onValueChange={v=>onRatio(+v)}><SelectTrigger id={`${id}-ratio`} className={fieldClass}><Icon name="linear_scale" className="text-accent"/><span className="min-w-0 flex-1 truncate text-left">{selected.name} — {ratio.toFixed(3)}</span></SelectTrigger><SelectContent className="w-[320px] max-w-[calc(100vw-16px)] rounded-xl" collisionPadding={8}>{TYPE_SCALES.map(s=><SelectItem key={s.name} value={String(s.ratio)} textValue={s.name} className="min-h-[60px] border-b border-border px-4 py-3 data-[state=checked]:bg-accent data-[state=checked]:text-white"><span className="flex flex-col gap-1"><span>{s.name}<span className="ml-2 opacity-75">{s.ratio.toFixed(3)}</span></span><span className="text-[11px] opacity-80">{s.description}{s.frameworks&&` · ${s.frameworks}`}</span></span></SelectItem>)}</SelectContent></Select></div>
     <TextValue label="Line Height" value={line.displayValue} numeric min={0.1} unit={line.unit} onChange={s=>onEdit({[line.id]:s})}/>
     <button onClick={onGenerate} className="flex min-h-[60px] w-full items-center justify-center gap-2 rounded-lg border border-border bg-card text-sm shadow-[0_5px_12px_#0000001a] hover:bg-secondary active:translate-y-px">Generate scale<Icon name="play_arrow"/></button>
-    </Section><Section title="Generated scale" icon="article"><div className="divide-y divide-border">{filtered.map(v=><div key={v.id} className="flex min-w-0 items-center gap-3 py-4"><span className="min-w-0 flex-1 truncate leading-[1.2]" style={{fontFamily:family.displayValue,fontWeight:/^--text-[2-9]xl$/.test(v.name)?700:/^h[1-6]/.test(v.name)?500:400,fontSize:`${pixels(v)}px`,lineHeight:Number.parseFloat(line.displayValue)}} title={v.name}>{specimen(v)}</span><div className="flex max-w-[45%] shrink-0 flex-col items-end gap-1 text-right"><span className="text-xs text-muted-foreground">{v.displayValue}</span><span className="max-w-full break-words rounded-sm bg-secondary px-1 text-xs text-accent">{v.name}</span></div></div>)}{!filtered.length&&<Empty/>}</div></Section>
-    {module.submodules.filter(s=>s.id!=='sizes').map(sub=>{const list=sub.variables.filter(v=>matches(v,query));return list.length?<Section key={sub.id} title={sub.label} icon={sub.icon}>{list.map(v=><TextValue key={v.id} label={v.name} value={v.displayValue} numeric={v.type==='FLOAT'} unit={v.unit} onChange={s=>onEdit({[v.id]:s})}/>)}</Section>:null;})}</>;
+    </div><Section title="Generated scale" icon="article"><div className="divide-y divide-border">{filtered.map(v=><div key={v.id} className="flex min-w-0 items-center gap-3 py-4"><span className="min-w-0 flex-1 truncate leading-[1.2]" style={{fontFamily:specimenFamily(v),fontWeight:Number(roleToken(v,'-weight')?.value)||(/^--text-[2-9]xl$/.test(v.name)?700:/^h[1-6]/.test(v.name)?500:400),fontSize:`${pixels(v)}px`,lineHeight:specimenLine(v)}} title={v.name}>{specimen(v)}</span><div className="flex max-w-[45%] shrink-0 flex-col items-end gap-1 text-right"><span className="text-xs text-muted-foreground">{v.displayValue}</span><span className="max-w-full break-words rounded-sm bg-secondary px-1 text-xs text-accent">{v.name}</span></div></div>)}{!filtered.length&&<Empty/>}</div></Section>
+    {module.submodules.filter(s=>s.id!=='sizes').map(sub=>{const list=sub.variables.filter(v=>matches(v,query)&&!Object.values(config.fontRoles).some(r=>r.token===v.id)&&!config.typeScale.steps.includes(v.id)&&![config.baseSize.default,config.lineHeight.default].includes(v.id));return list.length?<Section key={sub.id} title={sub.label} icon={sub.icon} defaultOpen={false}>{list.map(v=><TextValue key={v.id} label={v.name} value={v.displayValue} numeric={v.type==='FLOAT'} unit={v.unit} onChange={s=>onEdit({[v.id]:s})}/>)}</Section>:null;})}</>;
 }
 export function LayoutPanel({module,original,query,onEdit}:PanelProps) {
   return <>{module.submodules.map(sub=>{

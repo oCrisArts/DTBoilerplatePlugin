@@ -80,18 +80,15 @@ export function changedVariable(v: Variable, displayValue: string): Variable {
   return { ...v, value, displayValue, ...(v.type === 'COLOR' ? { preview: displayValue } : {}) };
 }
 export function customize(loaded: LoadedPreset, edits: Record<string,string>): LoadedPreset {
-  if (loaded.preset.id === 'materialdesign') edits = materialReferenceEdits(loaded, edits);
+  edits = materialReferenceEdits(loaded, edits);
   return { preset: loaded.preset, modules: loaded.modules.map(m=>({ ...m, submodules:m.submodules.map(s=>({...s,variables:s.variables.map(v=>edits[v.id] === undefined ? v : changedVariable(v,edits[v.id]))})) })) };
 }
 
-// The existing font picker edits brand. Material's brand/plain references and
-// role dependencies are resolved as values before the existing generation flow.
-// An explicitly edited role or plain typeface keeps its own customized value.
+// Resolve native aliases after customization. Explicit edits always win;
+// independent family controls never overwrite one another.
 function materialReferenceEdits(loaded: LoadedPreset, edits: Record<string,string>) {
   const resolved = { ...edits };
-  const brand = 'typography.family.--md-ref-typeface-brand';
-  const plain = 'typography.family.--md-ref-typeface-plain';
-  if (resolved[brand] !== undefined && resolved[plain] === undefined) resolved[plain] = resolved[brand];
+
   const variables = new Map(loaded.modules.flatMap(variablesOf).map(v => [v.id, v]));
   const resolve = (v: Variable): string | undefined => {
     if (resolved[v.id] !== undefined) return resolved[v.id];
@@ -139,7 +136,7 @@ export function typeScaleEdits(module: Extract<Module,{module:'typography'}>, ba
   // Explicit presets are not ordered mathematical scales. Infer levels from their
   // native proportions so headings stay large, small text stays small, and aliases agree.
   return Object.fromEntries(steps.map(v=>{
-    const exponent=Math.log(pixels(v)/originalBase)/Math.log(1.25);
+    const exponent=Math.log(pixels(v)/originalBase)/Math.log(module.configuration.typeScale.referenceRatio);
     const px=basePx*Math.pow(ratio,exponent);
     return [v.id,`${round(px/(v.unit==='rem'||v.unit==='em'?16:1))}${v.unit||''}`];
   }));

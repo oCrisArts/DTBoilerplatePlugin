@@ -4,15 +4,14 @@ export function UnlockModal({
   onUnlock,
   onCancel
 }: {
-  onUnlock: (email: string, plan: string) => void;
+  onUnlock: (email: string) => void;
   onCancel: () => void;
 }) {
   const [email, setEmail] = useState("");
-  const [selectedPlan, setSelectedPlan] = useState<"monthly" | "lifetime">("monthly");
 
   const handleSubmit = () => {
     if (!email.trim()) return;
-    onUnlock(email.trim(), selectedPlan);
+    onUnlock(email.trim());
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -21,7 +20,6 @@ export function UnlockModal({
     }
   };
 
-  const planPrice = selectedPlan === "monthly" ? "$5.99" : "$49.99";
 
   return (
     <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/50 backdrop-blur-sm px-[24px]">
@@ -36,7 +34,7 @@ export function UnlockModal({
               <path d="M19 12H5M12 19l-7-7 7-7"/>
             </svg>
           </button>
-          <h2 className="m-0 text-[#0c0c0d] font-semibold text-center flex-1" style={{ fontSize: F.sm }}>Unlock DT Boilerplate</h2>
+          <h2 className="m-0 text-[#0c0c0d] font-semibold text-center flex-1" style={{ fontSize: F.sm }}>Unlock StartTokens</h2>
           <div className="w-6"></div>
         </div>
 
@@ -44,38 +42,6 @@ export function UnlockModal({
         <p className="text-[#6e6e80] text-center mb-6" style={{ fontSize: F.xs, lineHeight: 1.45 }}>
           You have already used the free token generation. Unlock unlimited token generation and future updates.
         </p>
-
-        {/* Pricing Cards */}
-        <div className="grid grid-cols-2 gap-3 mb-6">
-          {/* Monthly Plan */}
-          <button
-            onClick={() => setSelectedPlan("monthly")}
-            className={`border rounded-lg p-4 text-left transition-all ${
-              selectedPlan === "monthly" 
-                ? "border-[#5e6ad2] bg-[#f0f2ff]" 
-                : "border-gray-200 hover:border-gray-300"
-            }`}
-          >
-            <div className="flex items-start justify-between mb-2">
-              <span className="text-[#0c0c0d] font-semibold" style={{ fontSize: F.sm }}>$5.99</span>
-              <span className="bg-[#5e6ad2] text-white text-xs px-2 py-0.5 rounded-full font-medium">Save 20%</span>
-            </div>
-            <div className="text-[#6e6e80]" style={{ fontSize: F.xs }}>/ month</div>
-          </button>
-
-          {/* Lifetime Plan */}
-          <button
-            onClick={() => setSelectedPlan("lifetime")}
-            className={`border rounded-lg p-4 text-left transition-all ${
-              selectedPlan === "lifetime" 
-                ? "border-[#5e6ad2] bg-[#f0f2ff]" 
-                : "border-gray-200 hover:border-gray-300"
-            }`}
-          >
-            <div className="text-[#0c0c0d] font-semibold mb-1" style={{ fontSize: F.sm }}>$49.99</div>
-            <div className="text-[#6e6e80]" style={{ fontSize: F.xs }}>/ Lifetime</div>
-          </button>
-        </div>
 
         {/* Benefits List */}
         <div className="space-y-2 mb-6">
@@ -97,8 +63,9 @@ export function UnlockModal({
         {/* Footer */}
         <div className="space-y-3">
           <div className="space-y-3">
-            <label className="block text-[#0c0c0d] font-medium mb-2" style={{ fontSize: F.xs }}>Email</label>
+            <label htmlFor="unlock-email" className="block text-[#0c0c0d] font-medium mb-2" style={{ fontSize: F.xs }}>Email</label>
             <input
+              id="unlock-email"
               type="email"
               placeholder="Insert your email"
               value={email}
@@ -114,7 +81,7 @@ export function UnlockModal({
             className="w-full bg-[#0c0c0d] rounded-lg py-3 text-[#fafafa] font-semibold hover:bg-[#1a1a1b] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ fontSize: F.sm }}
           >
-            Unlock Now {planPrice}
+            View plans on StartTokens
           </button>
         </div>
       </div>

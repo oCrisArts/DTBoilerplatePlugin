@@ -1,3 +1,6 @@
+import fontSection from '@/assets/figma/5bac3.svg?inline';
+import scaleSection from '@/assets/figma/ea9a7.svg?inline';
+import sectionArrow from '@/assets/figma/a78dc.svg?inline';
 import { useEffect, useId, useState, type PointerEvent, type ReactNode } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { cn } from './ui/utils';
@@ -7,9 +10,9 @@ export const fieldClass = 'flex min-h-[50px] w-full min-w-0 items-center gap-2 r
 export function Icon({name,className=''}:{name:string;className?:string}) {
   return <span aria-hidden="true" className={cn('material-symbols-outlined shrink-0 text-[18px] leading-none',className)}>{name}</span>;
 }
-export function Section({title,icon,children}:{title:string;icon:string;children:ReactNode}) {
-  const [open,setOpen]=useState(true), id=useId();
-  return <section className="min-w-0"><button className="flex min-h-[50px] w-full items-center gap-2 py-4 text-left text-sm text-accent" aria-expanded={open} aria-controls={id} onClick={()=>setOpen(!open)}><Icon name={icon}/><span className="min-w-0 flex-1 break-words font-medium">{title}</span><Icon name={open?'expand_less':'expand_more'} className="text-[14px]"/></button><div id={id} hidden={!open} className="min-w-0 space-y-4 pb-4">{children}</div></section>;
+export function Section({title,icon,children,defaultOpen=true}:{title:string;icon:string;children:ReactNode;defaultOpen?:boolean}) {
+  const [open,setOpen]=useState(defaultOpen), id=useId();
+  return <section className="min-w-0"><button className="flex min-h-[50px] w-full items-center gap-2 py-4 text-left text-sm text-accent" aria-expanded={open} aria-controls={id} onClick={()=>setOpen(!open)}>{['Font Families','Library'].includes(title)?<img src={fontSection} width={16} height={16} alt=""/>:icon==='article'?<img src={scaleSection} width={16} height={16} alt=""/>:<Icon name={icon}/>}<span className="min-w-0 flex-1 break-words font-medium">{title}</span><img src={sectionArrow} width={14} height={14} alt="" className={open?'':'rotate-180'}/></button><div id={id} hidden={!open} className="min-w-0 space-y-4 pb-4">{children}</div></section>;
 }
 export function TextValue({label,value,onChange,numeric=false,unit='',min=0,compact=false}:{label:string;value:string;onChange:(v:string)=>void;numeric?:boolean;unit?:string;min?:number;compact?:boolean}) {
   const [draft,setDraft]=useState(value), [error,setError]=useState(''),id=useId();

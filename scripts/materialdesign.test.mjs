@@ -6,7 +6,7 @@ import { runInNewContext } from 'node:vm';
 import { validatePreset, validateModules } from '../src/data/preset-contract/validate.mjs';
 import { supportedTokens, buildMaterialDesignPreset } from '../../DTBoilerplate LP/scripts/materialdesign-data.mjs';
 
-const server = await createServer({ server:{middlewareMode:true}, appType:'custom' });
+const server = await createServer({ server:{middlewareMode:true,hmr:false}, appType:'custom' });
 let loader, values;
 try {
   loader = await server.ssrLoadModule('/src/data/preset-loader.ts');
@@ -21,11 +21,11 @@ const identity = tokens => tokens.map(({id,name,figmaName}) => ({id,name,figmaNa
 test('catalog, real loader, contract, canonical values and unique identities', () => {
   assert.deepEqual(loader.catalog.presets.map(p=>p.id), ['bootstrap','tailwindcss','materialdesign','bulma','starttoken']);
   assert.equal(source.preset.metadata.name, 'Material Design');
-  assert.deepEqual(source.modules.map(m=>m.module), ['colors','typography','layout']);
+  assert.deepEqual(source.modules.map(m=>m.module), ['colors','typography','iconography','layout']);
   validatePreset(source.preset, 'materialdesign');
   validateModules(source.preset, source.modules);
   assert.deepEqual(JSON.parse(JSON.stringify(source)), buildMaterialDesignPreset());
-  assert.equal(all.length, 123);
+  assert.equal(all.length, 132);
   for (const key of ['id','name','figmaName']) assert.equal(new Set(all.map(v=>v[key])).size, all.length);
   for (const token of all) {
     assert.ok(token.figmaName.endsWith(token.name));
@@ -45,9 +45,9 @@ test('complete official supported lists, fifteen roles, native units and shape-o
   }
   assert.equal(find('--md-sys-color-primary').value,'#6750a4');
   assert.equal(find('--md-sys-typescale-display-large-size').value,3.5625);
-  assert.deepEqual(source.modules[2].submodules.map(s=>s.label),['Shape']);
-  assert.deepEqual(source.modules[2].submodules[0].variables.map(v=>v.value),[0,4,8,12,16,28,9999]);
-  assert.ok(source.modules[2].submodules[0].variables.every(v=>v.unit==='px'));
+  assert.deepEqual(source.modules[3].submodules.map(s=>s.label),['Shape']);
+  assert.deepEqual(source.modules[3].submodules[0].variables.map(v=>v.value),[0,4,8,12,16,28,9999]);
+  assert.ok(source.modules[3].submodules[0].variables.every(v=>v.unit==='px'));
   assert.deepEqual(source.preset.capabilities.layout,{grid:false,breakpoints:false,spacing:false,radius:true,tokens:false});
 });
 
@@ -63,7 +63,8 @@ test('customization preserves source and identity, propagates fonts, respects ex
   const tokens = updated.modules.flatMap(variablesOf);
   assert.equal(JSON.stringify(source),before);
   assert.deepEqual(identity(tokens),identity(all));
-  assert.ok(tokens.filter(v=>v.name.endsWith('-font') || [brand.id,plain.id].includes(v.id)).every(v=>v.value==='Inter'));
+  assert.equal(tokens.find(v=>v.id===plain.id).value,'Roboto');
+  for(const v of tokens.filter(v=>v.reference))assert.equal(v.value,tokens.find(t=>t.id===v.reference).value);
   const explicit = customize(source,{[brand.id]:'Inter',[plain.id]:'Arial',[roleFont.id]:'Lato'}).modules.flatMap(variablesOf);
   assert.equal(explicit.find(v=>v.id===plain.id).value,'Arial');
   assert.equal(explicit.find(v=>v.id===roleFont.id).value,'Lato');
@@ -84,7 +85,7 @@ test('real plugin generation creates and updates all variables and grouped docum
   const figma={root:node('DOCUMENT'),ui:{postMessage:m=>messages.push(m)},showUI(){},notify(){},
     clientStorage:{getAsync:async k=>k==='dt_boilerplate_premium_status',setAsync:async()=>{}},
     loadFontAsync:async()=>{},loadAllPagesAsync:async()=>{},setCurrentPageAsync:async p=>{figma.currentPage=p;},
-    viewport:{scrollAndZoomIntoView(){}},createFrame:()=>node('FRAME'),createText:()=>node('TEXT'),
+    viewport:{scrollAndZoomIntoView(){}},createFrame:()=>node('FRAME'),createNodeFromSvg:()=>node('FRAME'),createText:()=>node('TEXT'),
     createRectangle:()=>node('RECTANGLE'),createEllipse:()=>node('ELLIPSE'),
     createPage:()=>{const p=node('PAGE');figma.root.appendChild(p);return p;},
     variables:{getLocalVariablesAsync:async()=>variables,getLocalVariableCollectionsAsync:async()=>collections,
@@ -95,15 +96,15 @@ test('real plugin generation creates and updates all variables and grouped docum
   runInNewContext(output.outputFiles[0].text,{figma,__html__:'',console:{log(){},error:(...args)=>errors.push(args)}});
   const tokens=customize(source,{[find('--md-ref-typeface-brand').id]:'Inter'}).modules.flatMap(variablesOf);
   for (let pass=0;pass<2;pass++) {
-    await figma.ui.onmessage({type:'generate-variables',tokens,presetName:'Material Design'});
+    await figma.ui.onmessage({type:'generate-variables',tokens,presetName:'Material Design',modules:source.modules});
     const result=messages.at(-1);
     assert.equal(result.type,'variables-generated',JSON.stringify(errors));
     assert.equal(result.documentationGenerated,true,JSON.stringify(errors));
-    assert.equal(result.count,123);
-    assert.equal(pass===0?result.created:result.updated,123);
-    assert.equal(variables.length,123);
+    assert.equal(result.count,132);
+    assert.equal(pass===0?result.created:result.updated,132);
+    assert.equal(variables.length,132);
     const root=figma.currentPage.children[0];
-    assert.deepEqual(Array.from(root.children,n=>n.name),['Colors','Typography','Layout']);
+    assert.deepEqual(Array.from(root.children,n=>n.name),['Colors','Typography','Icons','Layout']);
     const text=nodes.filter(n=>n.type==='TEXT').map(n=>n.characters);
     for (const token of tokens) {assert.ok(text.includes(token.name));assert.ok(text.includes(token.figmaName));}
     for (const group of ['Primary','Secondary','Tertiary','Error','Surface','Inverse','Outline','Utility','Display','Headline','Title','Body','Label','Shape']) assert.ok(text.includes(group));

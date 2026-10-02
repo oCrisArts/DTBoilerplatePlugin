@@ -12,7 +12,7 @@ for(const entry of catalog.presets){
   const source={preset,modules},snapshot=JSON.stringify(source),all=modules.flatMap(variablesOf);
   const typography=modules.find(m=>m.module==='typography');
   const base=variablesOf(typography).find(v=>v.id===typography.configuration.baseSize.default);
-  const initial=typeScaleEdits(typography,pixels(base),1.25);
+  const initial=typeScaleEdits(typography,pixels(base),typography.configuration.typeScale.referenceRatio);
   for(const [id,value] of Object.entries(initial))assert.ok(Math.abs(parseFloat(value)-parseFloat(all.find(v=>v.id===id).displayValue))<.001,`Default typography profile: ${id}`);
   const color=all.find(v=>v.type==='COLOR'),layout=all.find(v=>v.module==='layout'&&v.type==='FLOAT');
   const generated=typeScaleEdits(typography,20,1.5);

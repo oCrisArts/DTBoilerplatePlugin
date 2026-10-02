@@ -1,3 +1,5 @@
+import { parseColor as parsePresetColor } from '../app/token-values';
+import type { Module } from '../data/preset-contract/types';
 import {
   marcarGeracaoGratuitaUtilizada,
   obterEstadoLicenca,
@@ -23,15 +25,16 @@ type GenerateVariablesMessage = {
   type: "generate-variables";
   tokens: TokenPayload[];
   presetName?: string;
+  modules?: Module[];
+  iconPreview?: {name:string;library:string;svg:string};
 };
 
 type ProcessUnlockMessage = {
   type: "process-unlock";
   email: string;
-  plan: string;
 };
 
-type PluginMessage = GenerateVariablesMessage | ProcessUnlockMessage;
+type PluginMessage = GenerateVariablesMessage | ProcessUnlockMessage | {type:'list-fonts'} | {type:'validate-font';font:{family:string;style:string};requestId:string} | {type:'insert-icon';svg:string;name:string;size:number};
 
 type VariableType = "COLOR" | "FLOAT" | "STRING";
 
@@ -48,6 +51,11 @@ type Variable = {
 };
 
 declare const figma: {
+  createNodeFromSvg: (svg:string) => FrameNode;
+  currentPage: PageNode;
+  viewport: {center:{x:number;y:number};scrollAndZoomIntoView:(nodes:SceneNode[])=>void};
+  listAvailableFontsAsync: () => Promise<{fontName:{family:string;style:string}}[]>;
+  loadFontAsync: (font:{family:string;style:string}) => Promise<void>;
   showUI: (html: string, options?: { width?: number; height?: number; themeColors?: boolean }) => void;
   ui: {
     onmessage: (message: PluginMessage) => void;
@@ -76,6 +84,30 @@ figma.showUI(__html__, {
 });
 
 figma.ui.onmessage = async (message: PluginMessage) => {
+  if(message.type==='insert-icon') {
+    try {
+      if(!Number.isFinite(message.size)||message.size<=0||message.size>4096||message.svg.length>100000||!/<svg\b/.test(message.svg)||/<(?:script|foreignObject|iframe|image|use)\b|\bon\w+\s*=|(?:href|src)\s*=|javascript:|<!ENTITY/i.test(message.svg))throw Error('Invalid icon SVG or size.');
+      const node=figma.createNodeFromSvg(message.svg);node.name=message.name;node.resize(message.size,message.size);
+      node.x=figma.viewport.center.x-message.size/2;node.y=figma.viewport.center.y-message.size/2;
+      figma.currentPage.appendChild(node);figma.currentPage.selection=[node];figma.viewport.scrollAndZoomIntoView([node]);
+      figma.ui.postMessage({type:'icon-inserted',name:message.name});
+    } catch(error){figma.ui.postMessage({type:'icon-insertion-failed',error:String(error)});}
+    return;
+  }
+  if(message.type==='list-fonts') {
+    try { const fonts=await figma.listAvailableFontsAsync();figma.ui.postMessage({type:'available-fonts',fonts:fonts.map(f=>f.fontName)}); }
+    catch(error) { figma.ui.postMessage({type:'available-fonts',fonts:[],error:String(error)}); }
+    return;
+  }
+  if(message.type==='validate-font') {
+    try {
+      const fonts=await figma.listAvailableFontsAsync();
+      if(!fonts.some(f=>f.fontName.family===message.font.family&&f.fontName.style===message.font.style))throw Error('Font is not available in Figma.');
+      await figma.loadFontAsync(message.font);
+      figma.ui.postMessage({type:'font-validation-result',requestId:message.requestId,ok:true});
+    } catch(error) { figma.ui.postMessage({type:'font-validation-result',requestId:message.requestId,ok:false,error:String(error)}); }
+    return;
+  }
   if (message.type === "process-unlock") {
     const licenca = await obterEstadoLicenca(figma.clientStorage, undefined, message.email);
     
@@ -85,7 +117,7 @@ figma.ui.onmessage = async (message: PluginMessage) => {
       figma.notify("License activated successfully!");
     } else {
       //figma.openExternal('https://dt-boilerplate-lp.vercel.app/?email=' + encodeURIComponent(message.email));
-      figma.openExternal(`https://dt-boilerplate-lp.vercel.app/?email=${encodeURIComponent(message.email)}&plan=${encodeURIComponent(message.plan)}`);
+      figma.openExternal(`https://dt-boilerplate-lp.vercel.app/?email=${encodeURIComponent(message.email)}#pricing`);
       figma.ui.postMessage({ type: "redirected-to-checkout" });
     }
     return;
@@ -112,7 +144,7 @@ figma.ui.onmessage = async (message: PluginMessage) => {
     let documentationGenerated = false;
 
     try {
-      await generateVisualDocumentation(message.tokens, result.variablesByName);
+      await generateVisualDocumentation(message.tokens, result.variablesByName, message.presetName, message.modules, message.iconPreview);
       documentationGenerated = true;
     } catch (error) {
       const detail = error instanceof Error ? error.message : "Unknown error";
@@ -168,7 +200,8 @@ async function generateVariables(tokens: TokenPayload[], presetName: string = "D
       usedNames.add(name);
 
       // Check if variable already exists
-      const existingVar = variablesInCollection.find((v: Variable) => v.name === name);
+      const existingVar = variablesInCollection.find((v: Variable) => v.name === name || (presetName==='StartToken' && token.module==='colors' && v.name.replace(/\/Grayscale-/g,'/Black-')===name));
+      if(existingVar && existingVar.name!==name)existingVar.name=name;
 
       if (existingVar) {
         // Update existing variable
@@ -288,48 +321,7 @@ function parseCssNumber(value: unknown) {
 }
 
 function parseColor(value: string) {
-  const raw = value.trim();
-  const hex = raw.match(/^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i);
-
-  if (hex) {
-    const expanded = expandHex(hex[1]);
-    return {
-      r: parseInt(expanded.slice(0, 2), 16) / 255,
-      g: parseInt(expanded.slice(2, 4), 16) / 255,
-      b: parseInt(expanded.slice(4, 6), 16) / 255,
-      a: expanded.length === 8 ? parseInt(expanded.slice(6, 8), 16) / 255 : 1,
-    };
-  }
-
-  const rgba = raw.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([.\d]+))?\)$/i);
-
-  if (rgba) {
-    return {
-      r: clamp255(Number(rgba[1])) / 255,
-      g: clamp255(Number(rgba[2])) / 255,
-      b: clamp255(Number(rgba[3])) / 255,
-      a: rgba[4] === undefined ? 1 : clamp01(Number(rgba[4])),
-    };
-  }
-
-  return { r: 0, g: 0, b: 0, a: 1 };
-}
-
-function expandHex(value: string) {
-  if (value.length === 3) {
-    return value
-      .split("")
-      .map((part) => `${part}${part}`)
-      .join("");
-  }
-
-  return value;
-}
-
-function clamp255(value: number) {
-  return Math.max(0, Math.min(255, value));
-}
-
-function clamp01(value: number) {
-  return Math.max(0, Math.min(1, value));
+  const parsed = parsePresetColor(value);
+  if (!parsed) throw new Error(`Unsupported color value: ${value}`);
+  return parsed;
 }
