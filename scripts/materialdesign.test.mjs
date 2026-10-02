@@ -25,7 +25,7 @@ test('catalog, real loader, contract, canonical values and unique identities', (
   validatePreset(source.preset, 'materialdesign');
   validateModules(source.preset, source.modules);
   assert.deepEqual(JSON.parse(JSON.stringify(source)), buildMaterialDesignPreset());
-  assert.equal(all.length, 132);
+  assert.equal(all.length, 169);
   for (const key of ['id','name','figmaName']) assert.equal(new Set(all.map(v=>v[key])).size, all.length);
   for (const token of all) {
     assert.ok(token.figmaName.endsWith(token.name));
@@ -48,7 +48,7 @@ test('complete official supported lists, fifteen roles, native units and shape-o
   assert.deepEqual(source.modules[3].submodules.map(s=>s.label),['Shape']);
   assert.deepEqual(source.modules[3].submodules[0].variables.map(v=>v.value),[0,4,8,12,16,28,9999]);
   assert.ok(source.modules[3].submodules[0].variables.every(v=>v.unit==='px'));
-  assert.deepEqual(source.preset.capabilities.layout,{grid:false,breakpoints:false,spacing:false,radius:true,tokens:false});
+  assert.deepEqual(source.preset.capabilities.layout,{grid:false,breakpoints:false,spacing:false,radius:true,tokens:false,borderWidth:false,borderStyle:false,opacity:false});
 });
 
 test('customization preserves source and identity, propagates fonts, respects explicit values and fifteen sizes', () => {
@@ -64,7 +64,7 @@ test('customization preserves source and identity, propagates fonts, respects ex
   assert.equal(JSON.stringify(source),before);
   assert.deepEqual(identity(tokens),identity(all));
   assert.equal(tokens.find(v=>v.id===plain.id).value,'Roboto');
-  for(const v of tokens.filter(v=>v.reference))assert.equal(v.value,tokens.find(t=>t.id===v.reference).value);
+  for(const v of tokens.filter(v=>v.reference))assert.deepEqual(v.value,tokens.find(t=>t.id===v.reference).value);
   const explicit = customize(source,{[brand.id]:'Inter',[plain.id]:'Arial',[roleFont.id]:'Lato'}).modules.flatMap(variablesOf);
   assert.equal(explicit.find(v=>v.id===plain.id).value,'Arial');
   assert.equal(explicit.find(v=>v.id===roleFont.id).value,'Lato');
@@ -100,9 +100,9 @@ test('real plugin generation creates and updates all variables and grouped docum
     const result=messages.at(-1);
     assert.equal(result.type,'variables-generated',JSON.stringify(errors));
     assert.equal(result.documentationGenerated,true,JSON.stringify(errors));
-    assert.equal(result.count,132);
-    assert.equal(pass===0?result.created:result.updated,132);
-    assert.equal(variables.length,132);
+    assert.equal(result.count,169);
+    assert.equal(pass===0?result.created:result.updated,169);
+    assert.equal(variables.length,169);
     const root=figma.currentPage.children[0];
     assert.deepEqual(Array.from(root.children,n=>n.name),['Colors','Typography','Icons','Layout']);
     const text=nodes.filter(n=>n.type==='TEXT').map(n=>n.characters);
@@ -112,7 +112,8 @@ test('real plugin generation creates and updates all variables and grouped docum
   for (const token of tokens) {
     const variable=variables.find(v=>v.name===token.figmaName);
     assert.equal(variable.type,token.type);
-    if(token.type!=='COLOR') assert.equal(variable.value,token.value);
+    if(token.reference)assert.equal(variable.value.id,variables.find(v=>v.name===tokens.find(t=>t.id===token.reference).figmaName).id);
+    else if(token.type!=='COLOR') assert.equal(variable.value,token.value);
   }
   assert.equal(collections.length,1);
   assert.deepEqual(errors,[]);

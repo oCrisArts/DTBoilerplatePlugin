@@ -11,7 +11,7 @@ function setup(){
  const nodes=[],fonts=[];let fail=false;
  function node(type){const data=new Map();const n={id:String(nodes.length),type,children:[],width:1,height:1,bindings:{},
  appendChild(c){if(c.parent)c.parent.children.splice(c.parent.children.indexOf(c),1);this.children.push(c);c.parent=this;},
- resize(w,h){assert.ok(Number.isFinite(w)&&w>0);assert.ok(Number.isFinite(h)&&h>0);this.width=w;this.height=h;},
+ resize(w,h){assert.ok(Number.isFinite(w)&&w>0);assert.ok(Number.isFinite(h)&&h>0);this.width=w;this.height=h;if(this.layoutMode){this.primaryAxisSizingMode='FIXED';this.counterAxisSizingMode='FIXED';}if(this.type==='TEXT')this.textAutoResize='NONE';},
  setPluginData(k,v){data.set(k,v);},getPluginData(k){return data.get(k)||'';},setBoundVariable(k,v){this.bindings[k]=v;},remove(){this.parent?.children.splice(this.parent.children.indexOf(this),1);}};nodes.push(n);return n;}
  const figma={root:node('DOCUMENT'),currentPage:null,loadAllPagesAsync:async()=>{},setCurrentPageAsync:async p=>{figma.currentPage=p;},viewport:{scrollAndZoomIntoView(){}},
  listAvailableFontsAsync:async()=>['Inter','Sora','Roboto'].flatMap(family=>['Regular','Bold','Medium','Semi Bold','Light','Thin','Extra Bold','Black','Extra Light'].map(style=>({fontName:{family,style}}))),
@@ -97,4 +97,85 @@ test('concurrent regeneration does not duplicate preset documentation',async()=>
  await Promise.all([h.generate(tokens,maps(tokens),'Bootstrap',source.modules),h.generate(tokens,maps(tokens),'Bootstrap',source.modules)]);
  assert.equal(h.figma.root.children.length,1);assert.equal(h.figma.currentPage.children.length,1);
  assert.equal(rows(h.figma.currentPage.children[0]).length,tokens.length);
+});
+
+for(const [base,ratio] of [[20,1.25],[28,1.5]])test('final typography values drive previews at base '+base+' and ratio '+ratio,async()=>{
+ const h=setup(),source=loader.loadPreset('starttoken');
+ const type=source.modules.find(m=>m.module==='typography'),config=type.configuration;
+ const edits={...values.typeScaleEdits(type,base,ratio),[config.fontRoles.primary.token]:'Inter',[config.fontRoles.secondary.token]:'Sora',[config.lineHeight.default]:'1.85'};
+ const changed=values.customize(source,edits),tokens=changed.modules.flatMap(values.variablesOf),before=JSON.stringify(tokens);
+ await h.generate(tokens,maps(tokens),'StartToken',changed.modules);
+ const root=h.figma.currentPage.children[0],all=walk(root),actual=rows(root);
+ assert.equal(actual.length,tokens.length);
+ const preview=t=>walk(actual.find(row=>row.name===t.figmaName)).find(n=>n.name===t.figmaName+' Preview');
+ for(const [role,family] of [['primary','Inter'],['secondary','Sora']]){
+  const token=tokens.find(t=>t.id===config.fontRoles[role].token);
+  const specimens=all.filter(n=>n.name===token.figmaName+' Preview');
+  assert.equal(specimens.length,2); // dedicated family specimen and the Variable row
+  for(const specimen of specimens){assert.equal(specimen.fontName.family,family);assert.equal(specimen.fontSize,base);assert.equal(specimen.lineHeight.value,185);}
+ }
+ for(const id of config.typeScale.steps){
+  const token=tokens.find(t=>t.id===id),sample=preview(token);
+  assert.equal(sample.fontSize,values.pixels(token),id);
+  assert.equal(sample.characters,'Aa');assert.equal(sample.maxLines,1);
+  assert.equal(sample.textAutoResize,'HEIGHT');assert.equal(sample.textTruncation,'ENDING');
+  assert.ok(sample.width<=sample.parent.width);assert.equal(sample.parent.clipsContent,true);
+ }
+ for(const n of all.filter(n=>n.type==='FRAME'&&n.layoutMode)){
+  assert.equal(n.minHeight,undefined,n.name);assert.equal(n.maxHeight,undefined,n.name);
+  assert.equal(n.layoutMode==='VERTICAL'?n.primaryAxisSizingMode:n.counterAxisSizingMode,'AUTO',n.name+' hugs vertically');
+  if(n.layoutMode==='HORIZONTAL'&&n!==root)assert.equal(n.counterAxisAlignItems,'CENTER',n.name);
+  if(n.name==='Cell'){assert.equal(n.layoutMode,'VERTICAL');assert.equal(n.primaryAxisAlignItems,'CENTER');}
+ }
+ for(const row of actual){assert.equal(row.layoutMode,'HORIZONTAL');assert.equal(row.children.length,4);}
+ for(const t of all.filter(n=>n.type==='TEXT'))assert.equal(t.textAutoResize,'HEIGHT',t.name);
+ for(const board of root.children){assert.equal(board.width,1920);assert.equal(board.paddingLeft+board.paddingRight,160);}
+ assert.equal(JSON.stringify(tokens),before);
+});
+
+test('large font specimens keep their exact size, zero/none line-height stays safe and all values remain documented',async()=>{
+ const h=setup(),source=loader.loadPreset('starttoken'),type=source.modules.find(m=>m.module==='typography');
+ const changed=values.customize(source,{[type.configuration.baseSize.default]:'640px',[type.configuration.lineHeight.default]:'0'});
+ const tokens=changed.modules.flatMap(values.variablesOf);
+ const line=tokens.find(t=>t.id===type.configuration.lineHeight.default);
+ const extra={...line,id:'none',name:'line-height-none-string',figmaName:'Typography/Lineheight/line-height-none-string',type:'STRING',value:'none',displayValue:'none'};
+ tokens.push(extra);const before=JSON.stringify(tokens);
+ await h.generate(tokens,maps(tokens),'StartToken',changed.modules);
+ const actual=rows(h.figma.currentPage.children[0]);assert.equal(actual.length,tokens.length);
+ for(const token of [line,extra]){
+  const row=actual.find(n=>n.name===token.figmaName),sample=walk(row).find(n=>n.name===token.figmaName+' Preview');
+  assert.equal(sample.characters,'Aa\nAa');assert.equal(sample.fontSize,640);
+  assert.equal(sample.lineHeight.unit,'AUTO');assert.equal(sample.bindings.lineHeight,undefined);
+  assert.equal(sample.maxLines,2);assert.ok(sample.width<=sample.parent.width);
+  assert.ok(walk(row).some(n=>n.name==='Value'&&n.characters===token.displayValue));
+ }
+ assert.equal(JSON.stringify(tokens),before);
+});
+
+test('composed Material role previews use final family, size, weight and line-height together',async()=>{
+ const h=setup(),source=loader.loadPreset('materialdesign'),type=source.modules.find(m=>m.module==='typography');
+ const vars=values.variablesOf(type),size=vars.find(t=>/-size$/.test(t.name)),prefix=size.name.replace(/-size$/,'');
+ const family=vars.find(t=>t.name===prefix+'-font'),weight=vars.find(t=>t.name===prefix+'-weight'),line=vars.find(t=>t.name===prefix+'-line-height');
+ assert.ok(family&&weight&&line);
+ const changed=values.customize(source,{[family.id]:'Sora',[size.id]:size.unit==='rem'?'5.25rem':'84px',[weight.id]:'700',[line.id]:line.unit==='rem'?'7rem':'112px'});
+ const tokens=changed.modules.flatMap(values.variablesOf);await h.generate(tokens,maps(tokens),'Material Design',changed.modules);
+ const row=rows(h.figma.currentPage.children[0]).find(n=>n.name===size.figmaName),sample=walk(row).find(n=>n.name===size.figmaName+' Preview');
+ assert.equal(sample.fontName.family,'Sora');assert.equal(sample.fontName.style,'Bold');assert.equal(sample.fontSize,84);assert.equal(sample.lineHeight.value,112);
+});
+
+test('new foundations all have value-driven previews including true zero space and tracking',async()=>{
+ const h=setup(),source=loader.loadPreset('starttoken'),tokens=source.modules.flatMap(values.variablesOf);
+ await h.generate(tokens,maps(tokens),'StartToken',source.modules);
+ const actual=rows(h.figma.currentPage.children[0]);
+ assert.equal(actual.length,tokens.length);
+ const row=name=>walk(actual.find(n=>n.name===tokens.find(t=>t.name===name).figmaName));
+ assert.ok(row('spacing-0').some(n=>n.characters==='0 · No space'));
+ assert.equal(row('spacing-0').filter(n=>n.type==='RECTANGLE').length,0);
+ assert.equal(row('radius-full').find(n=>n.name==='Radius Preview').cornerRadius,9999);
+ assert.equal(row('opacity-25').find(n=>n.name==='Opacity Preview').opacity,.25);
+ assert.equal(row('border-width-4').find(n=>n.name==='Border Width Preview').strokeWeight,4);
+ assert.deepEqual(row('border-style-dashed').find(n=>n.name==='Border Style Preview').dashPattern.join(','),'8,4');
+ assert.equal(row('border-style-none').find(n=>n.name==='Border Style Preview').strokeWeight,0);
+ assert.equal(row('letter-spacing-tight').find(n=>n.name.endsWith(' Preview')).letterSpacing.value,-.4);
+ assert.ok(row('breakpoint-wide').some(n=>n.name==='Length Preview'));
 });

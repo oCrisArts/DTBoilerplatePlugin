@@ -8,4 +8,9 @@
   Run `npm i` to install the dependencies.
 
   Run `npm run dev` to start the development server.
-  
+
+## Foundations, metadata and export
+
+The LP remains canonical. Run `npm run sync:data` before `npm test` and `npm run build`. See [the synchronized preset README](src/data/presets/README.md) for native foundation support, alias behavior, Figma scopes/code syntax and DTCG extension compatibility.
+
+Open **Export** below any module to preview, copy or download DTCG/JSON, CSS, SCSS, indented Sass or Tailwind. Every format uses the same final configuration payload as **Generate tokens**.

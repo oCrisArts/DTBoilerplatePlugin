@@ -1,3 +1,5 @@
+import { ExportPanel } from './components/export-panel';
+import { prepareTokens } from '@/data/preset-contract/exports.mjs';
 import { useEffect, useRef, useState } from 'react';
 import { IconographyPanel } from './components/iconography-panel';
 import { configureIconography, iconSvg } from './iconography';
@@ -45,6 +47,7 @@ export default function App() {
   const [status,setStatus]=useState('');
   const main=useRef<HTMLElement>(null);
   const customized=configureIconography(customize(source,edits),iconLibraries,edits);
+  const finalTokens=prepareTokens(customized.modules.flatMap(variablesOf));
   const module=customized.modules.find(m=>m.module===activeTab)!;
   const original=source.modules.find(m=>m.module===activeTab)!;
   const apply=(values:Record<string,string>)=>{setEdits(prev=>({...prev,...values}));setStatus('');};
@@ -78,7 +81,7 @@ export default function App() {
     const properties=Object.fromEntries(iconVars.filter(v=>v.submodule==='library').map(v=>[v.name,v.displayValue]));
     const available=library.icons.filter(i=>i.variant===properties.variant);
     const icon=available.find(i=>i.name===selectedIcon)||available.find(i=>['home','house','house-door'].includes(i.name))||available[0];
-    parent.postMessage({pluginMessage:{iconPreview:{name:icon.name,library:library.name,svg:iconSvg(icon.svg,library,properties)},type:'generate-variables',tokens:customized.modules.flatMap(variablesOf),modules:customized.modules,presetName:source.preset.metadata.name}},'*');
+    parent.postMessage({pluginMessage:{iconPreview:{name:icon.name,library:library.name,svg:iconSvg(icon.svg,library,properties)},type:'generate-variables',tokens:finalTokens,modules:customized.modules,presetName:source.preset.metadata.name}},'*');
   };
   return <div className="relative flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden bg-background font-sans text-foreground">
     {selected && source.preset.id === 'materialdesign' && <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap"/>}
@@ -96,7 +99,7 @@ export default function App() {
     {module.module==='typography'&&<TypographyPanel key={`${source.preset.id}-typography`} module={module} query={query} onEdit={apply} fonts={fonts} fontError={fontError} fontsLoading={fontsLoading} onRetryFonts={requestFonts} ratio={ratio} onRatio={setRatio} onGenerate={()=>{const base=variablesOf(module).find(v=>v.id===module.configuration.baseSize.default)!;apply(typeScaleEdits(original as typeof module,pixels(base),ratio));setStatus('Typography scale updated.');}}/>}
     {module.module==='iconography'&&<IconographyPanel key={`${source.preset.id}-icons`} module={module} original={original as typeof module} query={query} onEdit={apply} selected={selectedIcon} onSelect={setSelectedIcon}/>}
     {activeTab==='layout'&&<LayoutPanel key={`${source.preset.id}-layout`} module={module} original={original} query={query} onEdit={apply}/>}
-    <p role="status" className="text-sm text-accent">{status}</p></div>}
+    <ExportPanel tokens={finalTokens}/><p role="status" className="text-sm text-accent">{status}</p></div>}
     </main>
     {selected&&<footer className="shrink-0 bg-card px-3 py-4"><button onClick={generate} className="flex min-h-[60px] w-full items-center justify-center gap-1.5 rounded-lg bg-primary px-3 text-base font-medium text-primary-foreground hover:opacity-90 active:translate-y-px">Generate tokens<Icon name="play_arrow" className="text-2xl"/></button></footer>}
     <AlertDialog open={!!pending} onOpenChange={open=>{if(!open)setPending(null);}}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Switch preset?</AlertDialogTitle><AlertDialogDescription>Your customized values will be discarded when you load {catalog.presets.find(p=>p.id===pending)?.name}.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={()=>pending&&load(pending)}>Switch preset</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>

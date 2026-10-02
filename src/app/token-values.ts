@@ -80,8 +80,9 @@ export function changedVariable(v: Variable, displayValue: string): Variable {
   return { ...v, value, displayValue, ...(v.type === 'COLOR' ? { preview: displayValue } : {}) };
 }
 export function customize(loaded: LoadedPreset, edits: Record<string,string>): LoadedPreset {
+  const explicit=edits;
   edits = materialReferenceEdits(loaded, edits);
-  return { preset: loaded.preset, modules: loaded.modules.map(m=>({ ...m, submodules:m.submodules.map(s=>({...s,variables:s.variables.map(v=>edits[v.id] === undefined ? v : changedVariable(v,edits[v.id]))})) })) };
+  return { preset: loaded.preset, modules: loaded.modules.map(m=>({ ...m, submodules:m.submodules.map(s=>({...s,variables:s.variables.map(v=>edits[v.id] === undefined ? v : {...changedVariable(v,edits[v.id]),...(v.reference && Object.prototype.hasOwnProperty.call(explicit,v.id) ? {reference:undefined} : {})})})) })) };
 }
 
 // Resolve native aliases after customization. Explicit edits always win;

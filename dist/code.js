@@ -32,6 +32,80 @@
     return target;
   };
 
+  // src/data/preset-contract/token-metadata.mjs
+  function category(t) {
+    if (t.type === "COLOR") return "colors";
+    const n = `${t.submodule}/${t.name}`.toLowerCase();
+    if (t.module === "typography") {
+      if (/line.?height|leading/.test(n)) return "lineHeight";
+      if (/tracking|letter.?spacing/.test(n)) return "letterSpacing";
+      if (/weight/.test(n)) return "fontWeight";
+      if (/family|typeface|(?:[-/.])font$/.test(n) && t.type === "STRING") return "fontFamily";
+      if (/sizes|size|--text-/.test(n)) return "fontSize";
+    }
+    if (t.module === "layout") {
+      if (/breakpoint/.test(n)) return "screens";
+      if (/radius|shape/.test(n)) return "borderRadius";
+      if (/border.?width/.test(n)) return "borderWidth";
+      if (/border.?style/.test(n)) return "borderStyle";
+      if (/opacity/.test(n)) return "opacity";
+      if (/space|spacing|padding|gap|gutter|margin/.test(n)) return "spacing";
+      if (/width|height|size/.test(n)) return "sizing";
+    }
+    return void 0;
+  }
+  function scopesFor(t) {
+    if (t.type === "COLOR") return ["ALL_SCOPES"];
+    const c = category(t);
+    if (t.type === "STRING") return c === "fontFamily" ? ["FONT_FAMILY"] : ["ALL_SCOPES"];
+    const scopes = { fontSize: ["FONT_SIZE"], fontWeight: ["FONT_WEIGHT"], lineHeight: ["LINE_HEIGHT"], letterSpacing: ["LETTER_SPACING"], borderRadius: ["CORNER_RADIUS"], borderWidth: ["STROKE_FLOAT"], opacity: ["OPACITY"], spacing: ["GAP", "WIDTH_HEIGHT"], sizing: ["WIDTH_HEIGHT"], screens: ["WIDTH_HEIGHT"] };
+    return scopes[c] || ["ALL_SCOPES"];
+  }
+  function codeName(path) {
+    return path.replace(/^Colors\//, "Color/").replace(/^Layout\/Space\//, "Space/").replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  }
+  function codeSyntax(t) {
+    const name = codeName(t.figmaName), c = category(t);
+    return { css: `var(--${name})`, scss: `$${name}`, sass: `$${name}`, tailwind: c ? `theme(${JSON.stringify(c + "." + name)})` : `var(--${name})` };
+  }
+  function tokenTier(t) {
+    if (t.tier) return t.tier;
+    if (/\/(Button|Input|Label)\//i.test(t.figmaName) || t.name.startsWith("--md-comp-")) return "component";
+    if (t.reference || t.name.startsWith("--md-sys-") || ["roles", "theme"].includes(t.submodule)) return "semantic";
+    return "primitive";
+  }
+
+  // src/data/preset-contract/exports.mjs
+  function prepareTokens(payload) {
+    const ids = /* @__PURE__ */ new Map(), paths = /* @__PURE__ */ new Set(), names = /* @__PURE__ */ new Set(), result = [], visiting = /* @__PURE__ */ new Set(), done = /* @__PURE__ */ new Set();
+    for (const t of payload) {
+      const name = codeName(t.figmaName);
+      if (ids.has(t.id) || paths.has(t.figmaName) || names.has(name)) throw Error("Duplicate token: " + t.figmaName);
+      ids.set(t.id, t);
+      paths.add(t.figmaName);
+      names.add(name);
+    }
+    function visit(t) {
+      if (done.has(t.id)) return;
+      if (visiting.has(t.id)) throw Error("Cyclic alias: " + t.id);
+      visiting.add(t.id);
+      let resolved = __spreadValues({}, t);
+      if (t.reference) {
+        const parent = ids.get(t.reference);
+        if (!parent || parent.type !== t.type) throw Error("Invalid alias: " + t.id);
+        visit(parent);
+        const target = result.find((v) => v.id === parent.id);
+        if (t.unit !== target.unit) throw Error("Alias unit mismatch: " + t.id);
+        resolved = __spreadProps(__spreadValues({}, resolved), { value: target.value, displayValue: target.displayValue });
+      }
+      visiting.delete(t.id);
+      done.add(t.id);
+      result.push(resolved);
+    }
+    payload.forEach(visit);
+    return result;
+  }
+
   // src/app/token-values.ts
   var clamp = (n, max = 1) => Math.max(0, Math.min(max, n));
   function hsvToRgb({ h, s, v, a }) {
@@ -130,7 +204,12 @@
     var _a;
     return (_a = token.displayValue) != null ? _a : String(token.value);
   };
-  var number = (token) => token ? typeof token.value === "number" ? token.value : Number.parseFloat(valueLabel(token)) : NaN;
+  var number = (token) => {
+    if (!token) return NaN;
+    if (typeof token.value === "number") return token.value;
+    const ratio = valueLabel(token).match(/^calc\(\s*([\d.]+)\s*\/\s*([\d.]+)\s*\)$/);
+    return ratio ? Number(ratio[1]) / Number(ratio[2]) : Number.parseFloat(valueLabel(token));
+  };
   var unit = (token) => {
     var _a, _b;
     return (_b = token == null ? void 0 : token.unit) != null ? _b : token ? (_a = valueLabel(token).match(/(?:rem|em|px|pt|%)$/)) == null ? void 0 : _a[0] : void 0;
@@ -160,10 +239,12 @@
     node.fills = [];
     node.clipsContent = false;
     node.layoutMode = horizontal ? "HORIZONTAL" : "VERTICAL";
+    if (width !== void 0) node.resize(width, node.height);
     node.primaryAxisSizingMode = horizontal && width !== void 0 ? "FIXED" : "AUTO";
     node.counterAxisSizingMode = !horizontal && width !== void 0 ? "FIXED" : "AUTO";
     node.itemSpacing = 0;
-    if (width !== void 0) node.resize(width, 1);
+    node.counterAxisAlignItems = horizontal ? "CENTER" : "MIN";
+    node.primaryAxisAlignItems = horizontal ? "MIN" : "CENTER";
     return node;
   }
   var pendingRender = Promise.resolve();
@@ -221,15 +302,15 @@
     }
     const normal = await font(defaultFamily ? String(defaultFamily.value) : "");
     const bold = await font(normal.family, 700);
-    function text(value, width, size = 16, strong = false) {
+    function text(value, width, size, strong = false) {
       const node = figma.createText();
       node.name = value;
       node.fontName = strong ? bold : normal;
       node.characters = value;
-      node.fontSize = size;
+      if (size !== void 0) node.fontSize = size;
       node.lineHeight = { unit: "AUTO" };
       node.fills = [gray(0.05)];
-      node.resize(width, 1);
+      node.resize(width, node.height);
       node.textAutoResize = "HEIGHT";
       return node;
     }
@@ -276,17 +357,26 @@
       const style = kind === "style" ? token : sibling("style");
       const familyValue = family ? String(family.value) : normal.family;
       const face = await font(familyValue, Number.isFinite(number(weight)) ? number(weight) : 400, !!style && /italic/i.test(String(style.value)));
-      const sample = text("Aa \u2014 The quick brown fox\njumps over the lazy dog", width);
+      const multiline = kind === "lineHeight" || kind === "paragraphSpacing";
+      const sample = text(multiline ? "Aa\nAa" : kind === "weight" ? "Abc" : kind === "letterSpacing" ? "ABC" : "Aa", width);
       sample.name = `${token.figmaName} Preview`;
       sample.fontName = face;
       const sizePx = px(size);
-      sample.fontSize = Number.isFinite(sizePx) && sizePx > 0 ? sizePx : 16;
+      if (Number.isFinite(sizePx) && sizePx > 0) sample.fontSize = sizePx;
+      sample.textTruncation = "ENDING";
+      sample.maxLines = multiline ? 2 : 1;
+      sample.textAutoResize = "HEIGHT";
+      container.clipsContent = true;
       const lineValue = number(line);
-      if (Number.isFinite(lineValue) && lineValue >= 0) sample.lineHeight = unit(line) === "%" ? { unit: "PERCENT", value: lineValue } : !unit(line) ? { unit: "PERCENT", value: lineValue * 100 } : { unit: "PIXELS", value: px(line, sample.fontSize) };
+      const lineUnit = unit(line);
+      const linePixels = px(line, sample.fontSize);
+      const safeLine = Number.isFinite(lineValue) && lineValue > 0 && (!lineUnit || lineUnit === "%" || Number.isFinite(linePixels));
+      if (safeLine) sample.lineHeight = lineUnit === "%" ? { unit: "PERCENT", value: lineValue } : !lineUnit ? { unit: "PERCENT", value: lineValue * 100 } : { unit: "PIXELS", value: linePixels };
+      else sample.lineHeight = { unit: "AUTO" };
       if (family && familyValue === face.family) bind(sample, "fontFamily", family);
       bindLength(sample, "fontSize", size);
       if ((weight == null ? void 0 : weight.type) === "FLOAT") bind(sample, "fontWeight", weight);
-      if (line && unit(line) === "px") bindLength(sample, "lineHeight", line);
+      if (safeLine && line && unit(line) === "px") bindLength(sample, "lineHeight", line);
       for (const p of ["letterSpacing", "paragraphSpacing", "paragraphIndent"]) {
         const target = kind === p ? token : sibling(p);
         if (!target || !Number.isFinite(number(target))) continue;
@@ -309,7 +399,58 @@
       const container = cell(width);
       const n = px(token);
       const label = `${token.submodule}/${token.name}`.toLowerCase();
+      if (/border.?style/.test(label)) {
+        const style = String(token.value), rect = figma.createRectangle();
+        rect.name = "Border Style Preview";
+        rect.resize(96, 48);
+        rect.fills = [];
+        rect.strokes = [gray(0.2)];
+        rect.strokeWeight = style === "none" ? 0 : 2;
+        rect.strokeAlign = "INSIDE";
+        if (style === "dashed") rect.dashPattern = [8, 4];
+        if (style === "dotted") rect.dashPattern = [2, 3];
+        container.appendChild(rect);
+        if (style === "double") {
+          const inner = figma.createRectangle();
+          inner.name = "Double Border Inner";
+          inner.resize(88, 40);
+          inner.fills = [];
+          inner.strokes = [gray(0.2)];
+          inner.strokeWeight = 1;
+          container.appendChild(inner);
+          inner.layoutPositioning = "ABSOLUTE";
+          inner.x = 4;
+          inner.y = 12;
+        }
+        return container;
+      }
       if (!Number.isFinite(n) || n < 0) return container;
+      if (/opacity/.test(label)) {
+        const rect = figma.createRectangle();
+        rect.name = "Opacity Preview";
+        rect.resize(96, 48);
+        fill(rect);
+        rect.opacity = Math.max(0, Math.min(1, n));
+        if (n <= 1) bind(rect, "opacity", token);
+        container.appendChild(rect);
+        return container;
+      }
+      if (/border.?width/.test(label)) {
+        const rect = figma.createRectangle();
+        rect.name = "Border Width Preview";
+        rect.resize(96, 48);
+        rect.fills = [];
+        rect.strokes = [gray(0.2)];
+        rect.strokeWeight = n;
+        rect.strokeAlign = "INSIDE";
+        bindLength(rect, "strokeWeight", token);
+        container.appendChild(rect);
+        return container;
+      }
+      if (n === 0 && /spacing|space/.test(label)) {
+        container.appendChild(text("0 \xB7 No space", width, 12));
+        return container;
+      }
       if (/grid|column|gutter/.test(label)) {
         const preview = frame("Grid Preview", true);
         preview.itemSpacing = /gap|gutter/.test(label) ? n : 8;
@@ -360,7 +501,6 @@
       table2.appendChild(header);
       for (const token of members) {
         const row = frame(token.figmaName, true, CONTENT);
-        row.minHeight = 64;
         row.paddingLeft = 16;
         row.paddingRight = 16;
         row.setPluginData("starttokens-variable-path", token.figmaName);
@@ -387,6 +527,7 @@
         } else if (moduleId === "layout") preview = layoutPreview(token, widths[0] - 16);
         else preview = cell(widths[0]);
         preview.resize(widths[0], preview.height);
+        preview.primaryAxisSizingMode = "AUTO";
         row.appendChild(preview);
         for (const [i, value] of [token.name, valueLabel(token), token.figmaName].entries()) {
           const c = cell(widths[i + 1]);
@@ -410,6 +551,7 @@
     const previous = page.children.filter((n) => n.type === "FRAME" && n.getPluginData(ROOT_KEY) === "true" && n.getPluginData(PRESET_KEY) === presetName);
     const root = frame(`StartTokens \u2014 ${presetName} \u2014 Visual Foundations`, true);
     root.itemSpacing = 40;
+    root.counterAxisAlignItems = "MIN";
     root.visible = false;
     root.setPluginData(ROOT_KEY, "true");
     root.setPluginData(PRESET_KEY, presetName);
@@ -547,7 +689,8 @@
         figma.ui.postMessage({ type: "unlock-required" });
         return;
       }
-      const result = await generateVariables(message.tokens, message.presetName);
+      const finalTokens = prepareTokens(message.tokens);
+      const result = await generateVariables(finalTokens, message.presetName);
       if (result.count === 0) {
         figma.notify("No variables were created or updated.", { error: true, timeout: 6e3 });
         figma.ui.postMessage({ type: "variables-generation-failed", error: "No variables were created or updated." });
@@ -555,7 +698,7 @@
       }
       let documentationGenerated = false;
       try {
-        await generateVisualDocumentation(message.tokens, result.variablesByName, message.presetName, message.modules, message.iconPreview);
+        await generateVisualDocumentation(finalTokens, result.variablesByName, message.presetName, message.modules, message.iconPreview);
         documentationGenerated = true;
       } catch (error) {
         const detail = error instanceof Error ? error.message : "Unknown error";
@@ -578,7 +721,9 @@
     }
   };
   async function generateVariables(tokens, presetName = "DT Boilerplate") {
+    var _a, _b;
     try {
+      tokens = prepareTokens(tokens);
       const collectionName = presetName ? `StartToken / Theme: ${presetName}` : "DT Boilerplate";
       const collection = await findOrCreateCollection(collectionName);
       console.log("[DT Boilerplate] Collection:", collection.name, "ID:", collection.id);
@@ -630,6 +775,21 @@
             console.error(`[DT Boilerplate] Failed to create variable ${name}:`, error);
             figma.notify(`Failed to create variable ${name}`, { error: true });
           }
+        }
+      }
+      const byId = new Map(tokens.map((t) => [t.id, t]));
+      for (const token of tokens) {
+        const variable = variablesByName.get(token.figmaName);
+        if (!variable) continue;
+        variable.scopes = scopesFor(token);
+        const syntax = codeSyntax(token);
+        (_a = variable.setVariableCodeSyntax) == null ? void 0 : _a.call(variable, "WEB", syntax.css);
+        (_b = variable.setPluginData) == null ? void 0 : _b.call(variable, "starttokens-metadata", JSON.stringify({ tier: tokenTier(token), codeSyntax: syntax, path: token.figmaName, unit: token.unit || null }));
+        if (token.reference) {
+          const target = byId.get(token.reference);
+          const parent = target && variablesByName.get(target.figmaName);
+          if (!parent) throw Error("Alias target was not generated: " + token.reference);
+          variable.setValueForMode(modeId, { type: "VARIABLE_ALIAS", id: parent.id });
         }
       }
       return {

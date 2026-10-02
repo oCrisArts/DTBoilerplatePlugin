@@ -1,3 +1,5 @@
+import { prepareTokens } from '../data/preset-contract/exports.mjs';
+import { scopesFor, codeSyntax, tokenTier } from '../data/preset-contract/token-metadata.mjs';
 import { parseColor as parsePresetColor } from '../app/token-values';
 import type { Module } from '../data/preset-contract/types';
 import {
@@ -19,6 +21,8 @@ type TokenPayload = {
   unit?: string;
   preview?: string;
   icon?: string;
+  reference?: string;
+  tier?: string;
 };
 
 type GenerateVariablesMessage = {
@@ -45,6 +49,10 @@ type VariableCollection = {
 };
 
 type Variable = {
+  id: string;
+  scopes?: string[];
+  setVariableCodeSyntax?: (platform: string, value: string) => void;
+  setPluginData?: (key: string,value: string) => void;
   name: string;
   variableCollectionId: string;
   remove: () => void;
@@ -125,7 +133,8 @@ figma.ui.onmessage = async (message: PluginMessage) => {
       return;
     }
 
-    const result = await generateVariables(message.tokens, message.presetName);
+    const finalTokens=prepareTokens(message.tokens);
+    const result = await generateVariables(finalTokens, message.presetName);
 
     if (result.count === 0) {
       figma.notify("No variables were created or updated.", { error: true, timeout: 6000 });
@@ -136,7 +145,7 @@ figma.ui.onmessage = async (message: PluginMessage) => {
     let documentationGenerated = false;
 
     try {
-      await generateVisualDocumentation(message.tokens, result.variablesByName, message.presetName, message.modules, message.iconPreview);
+      await generateVisualDocumentation(finalTokens, result.variablesByName, message.presetName, message.modules, message.iconPreview);
       documentationGenerated = true;
     } catch (error) {
       const detail = error instanceof Error ? error.message : "Unknown error";
@@ -165,6 +174,7 @@ figma.ui.onmessage = async (message: PluginMessage) => {
 
 async function generateVariables(tokens: TokenPayload[], presetName: string = "DT Boilerplate") {
   try {
+    tokens=prepareTokens(tokens);
     // Step 1: Find or create the collection with Theme-specific name
     const collectionName = presetName ? `StartToken / Theme: ${presetName}` : "DT Boilerplate";
     const collection = await findOrCreateCollection(collectionName);
@@ -229,6 +239,16 @@ async function generateVariables(tokens: TokenPayload[], presetName: string = "D
       }
     }
 
+    // All Variables now exist, so aliases can safely point forward or backward.
+    const byId=new Map(tokens.map(t=>[t.id,t]));
+    for(const token of tokens){
+      const variable=variablesByName.get(token.figmaName);if(!variable)continue;
+      variable.scopes=scopesFor(token);
+      const syntax=codeSyntax(token);
+      variable.setVariableCodeSyntax?.('WEB',syntax.css);
+      variable.setPluginData?.('starttokens-metadata',JSON.stringify({tier:tokenTier(token),codeSyntax:syntax,path:token.figmaName,unit:token.unit||null}));
+      if(token.reference){const target=byId.get(token.reference);const parent=target&&variablesByName.get(target.figmaName);if(!parent)throw Error('Alias target was not generated: '+token.reference);variable.setValueForMode(modeId,{type:'VARIABLE_ALIAS',id:parent.id});}
+    }
     return {
       action: created > 0 && updated > 0 ? "created and updated" : created > 0 ? "created" : "updated",
       count: created + updated,

@@ -16,7 +16,13 @@ const WIDTH = 1920, CONTENT = 1760;
 // Exact existing StartTokens brand asset.
 const BRAND_MARK = "<svg preserveAspectRatio=\"none\" overflow=\"visible\" style=\"display: block;\" width=\"18.2024\" height=\"30\" viewBox=\"0 0 18.2024 30\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n<g id=\"Vector\">\n<path d=\"M0.960205 19.2263L8.64904 29.7675C8.87452 30.0775 9.33675 30.0775 9.56223 29.7675L17.2511 19.2263C17.5837 18.7697 17.1158 18.1609 16.5915 18.3695L9.72571 21.064C9.32548 21.2218 8.8858 21.2218 8.49121 21.064L1.62537 18.3695C1.10113 18.1609 0.63326 18.7697 0.965842 19.2263H0.960205Z\" fill=\"#2D328E\"/>\n<path d=\"M8.79556 19.542L0.255543 14.5589C0.00751597 14.4123 -0.0714017 14.1249 0.0695227 13.8937L8.60954 0.257892C8.82375 -0.0859639 9.37617 -0.0859639 9.59602 0.257892L18.1304 13.8937C18.277 14.1249 18.1924 14.418 17.9444 14.5589L9.41 19.542C9.22398 19.6491 8.98158 19.6491 8.79556 19.542Z\" fill=\"#2D328E\"/>\n</g>\n</svg>\n";
 const valueLabel = (token: Token) => token.displayValue ?? String(token.value);
-const number = (token?: Token) => token ? typeof token.value === 'number' ? token.value : Number.parseFloat(valueLabel(token)) : NaN;
+const number = (token?: Token): number => {
+  if (!token) return NaN;
+  if (typeof token.value === 'number') return token.value;
+  // Resolve the native ratio expressions used by Tailwind without evaluating code.
+  const ratio = valueLabel(token).match(/^calc\(\s*([\d.]+)\s*\/\s*([\d.]+)\s*\)$/);
+  return ratio ? Number(ratio[1]) / Number(ratio[2]) : Number.parseFloat(valueLabel(token));
+};
 const unit = (token?: Token) => token?.unit ?? (token ? valueLabel(token).match(/(?:rem|em|px|pt|%)$/)?.[0] : undefined);
 const paint = (color: RGB | RGBA): SolidPaint => ({type:'SOLID',color:{r:color.r,g:color.g,b:color.b},opacity:'a' in color ? color.a : 1});
 const gray = (n: number) => paint({r:n,g:n,b:n});
@@ -42,10 +48,12 @@ function role(token: Token) {
 function frame(name: string, horizontal = false, width?: number): FrameNode {
   const node = figma.createFrame(); node.name = name; node.fills = []; node.clipsContent = false;
   node.layoutMode = horizontal ? 'HORIZONTAL' : 'VERTICAL';
+  if (width !== undefined) node.resize(width,node.height);
   node.primaryAxisSizingMode = horizontal && width !== undefined ? 'FIXED' : 'AUTO';
   node.counterAxisSizingMode = !horizontal && width !== undefined ? 'FIXED' : 'AUTO';
   node.itemSpacing = 0;
-  if (width !== undefined) node.resize(width,1);
+  node.counterAxisAlignItems = horizontal ? 'CENTER' : 'MIN';
+  node.primaryAxisAlignItems = horizontal ? 'MIN' : 'CENTER';
   return node;
 }
 
@@ -105,10 +113,10 @@ async function renderDocumentation(
   }
   const normal = await font(defaultFamily ? String(defaultFamily.value) : '');
   const bold = await font(normal.family,700);
-  function text(value: string, width: number, size = 16, strong = false) {
+  function text(value: string, width: number, size?: number, strong = false) {
     const node = figma.createText(); node.name = value; node.fontName = strong ? bold : normal;
-    node.characters = value; node.fontSize = size; node.lineHeight = {unit:'AUTO'};
-    node.fills = [gray(.05)]; node.resize(width,1); node.textAutoResize = 'HEIGHT'; return node;
+    node.characters = value; if(size !== undefined) node.fontSize = size; node.lineHeight = {unit:'AUTO'};
+    node.fills = [gray(.05)]; node.resize(width,node.height); node.textAutoResize = 'HEIGHT'; return node;
   }
   function bind(node: SceneNode, field: VariableBindableNodeField | VariableBindableTextField, token?: Token) {
     if (!token || !('setBoundVariable' in node)) return;
@@ -140,15 +148,25 @@ async function renderDocumentation(
     const style = kind==='style'?token:sibling('style');
     const familyValue = family ? String(family.value) : normal.family;
     const face = await font(familyValue,Number.isFinite(number(weight))?number(weight):400,!!style && /italic/i.test(String(style.value)));
-    const sample=text('Aa — The quick brown fox\njumps over the lazy dog',width);
+    const multiline=kind==='lineHeight'||kind==='paragraphSpacing';
+    const sample=text(multiline?'Aa\nAa':kind==='weight'?'Abc':kind==='letterSpacing'?'ABC':'Aa',width);
     sample.name = `${token.figmaName} Preview`; sample.fontName=face;
-    const sizePx=px(size); sample.fontSize=Number.isFinite(sizePx)&&sizePx>0?sizePx:16;
+    const sizePx=px(size);
+    if(Number.isFinite(sizePx)&&sizePx>0)sample.fontSize=sizePx;
+    // Keep the actual size, but prevent an oversized specimen from wrapping into
+    // dozens of lines. The cell bounds its paint; no scaling or size cap is used.
+    sample.textTruncation='ENDING';sample.maxLines=multiline?2:1;
+    sample.textAutoResize='HEIGHT';container.clipsContent=true;
     const lineValue=number(line);
-    if(Number.isFinite(lineValue)&&lineValue>=0) sample.lineHeight=unit(line)==='%'?{unit:'PERCENT',value:lineValue}:!unit(line)?{unit:'PERCENT',value:lineValue*100}:{unit:'PIXELS',value:px(line,sample.fontSize as number)};
+    const lineUnit=unit(line);
+    const linePixels=px(line,sample.fontSize as number);
+    const safeLine=Number.isFinite(lineValue)&&lineValue>0 && (!lineUnit || lineUnit==='%' || Number.isFinite(linePixels));
+    if(safeLine)sample.lineHeight=lineUnit==='%'?{unit:'PERCENT',value:lineValue}:!lineUnit?{unit:'PERCENT',value:lineValue*100}:{unit:'PIXELS',value:linePixels};
+    else sample.lineHeight={unit:'AUTO'}; // Zero/none cannot safely stack glyphs; retain the original value in its column.
     if (family && familyValue===face.family) bind(sample,'fontFamily',family);
     bindLength(sample,'fontSize',size);
     if(weight?.type==='FLOAT') bind(sample,'fontWeight',weight);
-    if(line && unit(line)==='px') bindLength(sample,'lineHeight',line);
+    if(safeLine && line && unit(line)==='px') bindLength(sample,'lineHeight',line);
     for(const p of ['letterSpacing','paragraphSpacing','paragraphIndent'] as const) {
       const target=kind===p?token:sibling(p);
       if(!target || !Number.isFinite(number(target))) continue;
@@ -162,7 +180,17 @@ async function renderDocumentation(
   }
   function layoutPreview(token:Token,width:number) {
     const container=cell(width);const n=px(token);const label=`${token.submodule}/${token.name}`.toLowerCase();
+    if(/border.?style/.test(label)) {
+      const style=String(token.value),rect=figma.createRectangle();rect.name='Border Style Preview';rect.resize(96,48);rect.fills=[];rect.strokes=[gray(.2)];rect.strokeWeight=style==='none'?0:2;rect.strokeAlign='INSIDE';
+      if(style==='dashed')rect.dashPattern=[8,4];if(style==='dotted')rect.dashPattern=[2,3];
+      container.appendChild(rect);
+      if(style==='double'){const inner=figma.createRectangle();inner.name='Double Border Inner';inner.resize(88,40);inner.fills=[];inner.strokes=[gray(.2)];inner.strokeWeight=1;container.appendChild(inner);inner.layoutPositioning='ABSOLUTE';inner.x=4;inner.y=12;}
+      return container;
+    }
     if(!Number.isFinite(n)||n<0) return container;
+    if(/opacity/.test(label)){const rect=figma.createRectangle();rect.name='Opacity Preview';rect.resize(96,48);fill(rect);rect.opacity=Math.max(0,Math.min(1,n));if(n<=1)bind(rect,'opacity',token);container.appendChild(rect);return container;}
+    if(/border.?width/.test(label)){const rect=figma.createRectangle();rect.name='Border Width Preview';rect.resize(96,48);rect.fills=[];rect.strokes=[gray(.2)];rect.strokeWeight=n;rect.strokeAlign='INSIDE';bindLength(rect,'strokeWeight',token);container.appendChild(rect);return container;}
+    if(n===0&&/spacing|space/.test(label)){container.appendChild(text('0 · No space',width,12));return container;}
     if(/grid|column|gutter/.test(label)) {
       const preview=frame('Grid Preview',true);preview.itemSpacing=/gap|gutter/.test(label)?n:8;
       const columns=/columns?$/.test(token.name)?Math.max(1,Math.min(24,Math.round(n))):3;
@@ -189,7 +217,7 @@ async function renderDocumentation(
     }
     table.appendChild(header);
     for(const token of members){
-      const row=frame(token.figmaName,true,CONTENT);row.minHeight=64;row.paddingLeft=16;row.paddingRight=16;
+      const row=frame(token.figmaName,true,CONTENT);row.paddingLeft=16;row.paddingRight=16;
       row.setPluginData('starttokens-variable-path',token.figmaName);
       let preview:FrameNode;
       if(token.type==='COLOR'){preview=cell(widths[0]);const swatch=figma.createRectangle();swatch.name=`${token.name} Swatch`;swatch.resize(48,48);swatch.cornerRadius=4;fill(swatch,token);preview.appendChild(swatch);}
@@ -202,7 +230,7 @@ async function renderDocumentation(
       }
       else if(moduleId==='layout')preview=layoutPreview(token,widths[0]-16);
       else preview=cell(widths[0]);
-      preview.resize(widths[0],preview.height);row.appendChild(preview);
+      preview.resize(widths[0],preview.height);preview.primaryAxisSizingMode='AUTO';row.appendChild(preview);
       for(const [i,value] of [token.name,valueLabel(token),token.figmaName].entries()){
         const c=cell(widths[i+1]);const label=text(value,widths[i+1]-16,15);label.name=['Variable Name','Value','Variable Path'][i];c.appendChild(label);row.appendChild(c);
       }
@@ -216,7 +244,7 @@ async function renderDocumentation(
   if(!page){page=figma.createPage();page.name=pageName;}
   await figma.setCurrentPageAsync(page);
   const previous=page.children.filter(n=>n.type==='FRAME' && n.getPluginData(ROOT_KEY)==='true' && n.getPluginData(PRESET_KEY)===presetName);
-  const root=frame(`StartTokens — ${presetName} — Visual Foundations`,true);root.itemSpacing=40;root.visible=false;
+  const root=frame(`StartTokens — ${presetName} — Visual Foundations`,true);root.itemSpacing=40;root.counterAxisAlignItems='MIN';root.visible=false;
   root.setPluginData(ROOT_KEY,'true');root.setPluginData(PRESET_KEY,presetName);page.appendChild(root);
   try {
     const grouped=new Map<string,Map<string,Token[]>>();
