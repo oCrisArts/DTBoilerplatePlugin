@@ -7,7 +7,7 @@ import vm from 'node:vm';
 const server=await createServer({server:{middlewareMode:true,hmr:false},appType:'custom'});
 let loader,values,iconography,libraries;
 try{
-  loader=await server.ssrLoadModule('/src/data/preset-loader.ts');values=await server.ssrLoadModule('/src/app/token-values.ts');iconography=await server.ssrLoadModule('/src/app/iconography.ts');libraries=(await server.ssrLoadModule('/src/data/icon-loader.ts')).iconLibraries;
+  loader=await server.ssrLoadModule('/src/data/preset-loader.ts');values=await server.ssrLoadModule('/src/app/token-values.ts');iconography=await server.ssrLoadModule('/src/app/iconography.ts');libraries=JSON.parse(readFileSync(new URL('../../DTBoilerplate LP/public/data/icons/catalog.json',import.meta.url),'utf8')).libraries.map(entry=>JSON.parse(readFileSync(new URL('../../DTBoilerplate LP/public/data/icons/'+entry.path,import.meta.url),'utf8')));
 }finally{await server.close();}
 test('project scale edits retain each preset identity and proportions; library properties produce only configuration Variables',()=>{
   for(const entry of loader.catalog.presets){
