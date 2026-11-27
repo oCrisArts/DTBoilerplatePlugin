@@ -45,9 +45,9 @@
           "name": "size-1",
           "figmaName": "Typography/Sizes/size-1",
           "type": "FLOAT",
-          "value": 3,
-          "unit": "rem",
-          "displayValue": "3rem",
+          "value": 48,
+          "unit": "px",
+          "displayValue": "48px",
           "tier": "primitive"
         },
         {
@@ -57,9 +57,9 @@
           "name": "size-2",
           "figmaName": "Typography/Sizes/size-2",
           "type": "FLOAT",
-          "value": 2.5,
-          "unit": "rem",
-          "displayValue": "2.5rem",
+          "value": 40,
+          "unit": "px",
+          "displayValue": "40px",
           "tier": "primitive"
         },
         {
@@ -69,9 +69,9 @@
           "name": "size-3",
           "figmaName": "Typography/Sizes/size-3",
           "type": "FLOAT",
-          "value": 2,
-          "unit": "rem",
-          "displayValue": "2rem",
+          "value": 32,
+          "unit": "px",
+          "displayValue": "32px",
           "tier": "primitive"
         },
         {
@@ -81,9 +81,9 @@
           "name": "size-4",
           "figmaName": "Typography/Sizes/size-4",
           "type": "FLOAT",
-          "value": 1.5,
-          "unit": "rem",
-          "displayValue": "1.5rem",
+          "value": 24,
+          "unit": "px",
+          "displayValue": "24px",
           "tier": "primitive"
         },
         {
@@ -93,9 +93,9 @@
           "name": "size-5",
           "figmaName": "Typography/Sizes/size-5",
           "type": "FLOAT",
-          "value": 1.25,
-          "unit": "rem",
-          "displayValue": "1.25rem",
+          "value": 20,
+          "unit": "px",
+          "displayValue": "20px",
           "tier": "primitive"
         },
         {
@@ -105,9 +105,9 @@
           "name": "size-6",
           "figmaName": "Typography/Sizes/size-6",
           "type": "FLOAT",
-          "value": 1,
-          "unit": "rem",
-          "displayValue": "1rem",
+          "value": 16,
+          "unit": "px",
+          "displayValue": "16px",
           "tier": "primitive"
         },
         {
@@ -117,9 +117,9 @@
           "name": "size-7",
           "figmaName": "Typography/Sizes/size-7",
           "type": "FLOAT",
-          "value": 0.75,
-          "unit": "rem",
-          "displayValue": "0.75rem",
+          "value": 12,
+          "unit": "px",
+          "displayValue": "12px",
           "tier": "primitive"
         },
         {
@@ -129,9 +129,9 @@
           "name": "body-size",
           "figmaName": "Typography/Sizes/body-size",
           "type": "FLOAT",
-          "value": 1,
-          "unit": "em",
-          "displayValue": "1em",
+          "value": 16,
+          "unit": "px",
+          "displayValue": "16px",
           "tier": "primitive"
         }
       ]

@@ -45,9 +45,9 @@
           "name": "font-size-base",
           "figmaName": "Typography/Sizes/font-size-base",
           "type": "FLOAT",
-          "value": 1,
-          "unit": "rem",
-          "displayValue": "1rem",
+          "value": 16,
+          "unit": "px",
+          "displayValue": "16px",
           "tier": "primitive"
         },
         {
@@ -57,9 +57,9 @@
           "name": "font-size-sm",
           "figmaName": "Typography/Sizes/font-size-sm",
           "type": "FLOAT",
-          "value": 0.875,
-          "unit": "rem",
-          "displayValue": ".875rem",
+          "value": 14,
+          "unit": "px",
+          "displayValue": "14px",
           "tier": "primitive"
         },
         {
@@ -69,9 +69,9 @@
           "name": "font-size-lg",
           "figmaName": "Typography/Sizes/font-size-lg",
           "type": "FLOAT",
-          "value": 1.25,
-          "unit": "rem",
-          "displayValue": "1.25rem",
+          "value": 20,
+          "unit": "px",
+          "displayValue": "20px",
           "tier": "primitive"
         },
         {
@@ -81,9 +81,9 @@
           "name": "h1-font-size",
           "figmaName": "Typography/Sizes/h1-font-size",
           "type": "FLOAT",
-          "value": 2.5,
-          "unit": "rem",
-          "displayValue": "2.5rem",
+          "value": 40,
+          "unit": "px",
+          "displayValue": "40px",
           "tier": "primitive"
         },
         {
@@ -93,9 +93,9 @@
           "name": "h2-font-size",
           "figmaName": "Typography/Sizes/h2-font-size",
           "type": "FLOAT",
-          "value": 2,
-          "unit": "rem",
-          "displayValue": "2rem",
+          "value": 32,
+          "unit": "px",
+          "displayValue": "32px",
           "tier": "primitive"
         },
         {
@@ -105,9 +105,9 @@
           "name": "h3-font-size",
           "figmaName": "Typography/Sizes/h3-font-size",
           "type": "FLOAT",
-          "value": 1.75,
-          "unit": "rem",
-          "displayValue": "1.75rem",
+          "value": 28,
+          "unit": "px",
+          "displayValue": "28px",
           "tier": "primitive"
         },
         {
@@ -117,9 +117,9 @@
           "name": "h4-font-size",
           "figmaName": "Typography/Sizes/h4-font-size",
           "type": "FLOAT",
-          "value": 1.5,
-          "unit": "rem",
-          "displayValue": "1.5rem",
+          "value": 24,
+          "unit": "px",
+          "displayValue": "24px",
           "tier": "primitive"
         },
         {
@@ -129,9 +129,9 @@
           "name": "h5-font-size",
           "figmaName": "Typography/Sizes/h5-font-size",
           "type": "FLOAT",
-          "value": 1.25,
-          "unit": "rem",
-          "displayValue": "1.25rem",
+          "value": 20,
+          "unit": "px",
+          "displayValue": "20px",
           "tier": "primitive"
         },
         {
@@ -141,9 +141,9 @@
           "name": "h6-font-size",
           "figmaName": "Typography/Sizes/h6-font-size",
           "type": "FLOAT",
-          "value": 1,
-          "unit": "rem",
-          "displayValue": "1rem",
+          "value": 16,
+          "unit": "px",
+          "displayValue": "16px",
           "tier": "primitive"
         }
       ]

@@ -34,17 +34,17 @@ test('catalog, real loader, contract, canonical values and unique identities', (
   }
 });
 
-test('complete official supported lists, fifteen roles, native units and shape-only layout', () => {
+test('complete official supported lists, fifteen roles, Figma px units and shape-only layout', () => {
   for (const namespace of ['md-sys-color','md-ref-typeface','md-sys-typescale','md-sys-shape']) {
     const actual = all.filter(v=>v.name.startsWith(`--${namespace}-`)).map(v=>v.name).sort();
     assert.deepEqual(actual, supportedTokens(namespace).map(n=>`--${namespace}-${n}`).sort());
   }
   for (const role of ['display','headline','title','body','label']) for (const size of ['large','medium','small']) {
     for (const property of ['font','size','line-height','weight']) assert.ok(find(`--md-sys-typescale-${role}-${size}-${property}`));
-    for (const property of ['size','line-height']) assert.equal(find(`--md-sys-typescale-${role}-${size}-${property}`).unit,'rem');
+    for (const property of ['size','line-height']) assert.equal(find(`--md-sys-typescale-${role}-${size}-${property}`).unit,'px');
   }
   assert.equal(find('--md-sys-color-primary').value,'#6750a4');
-  assert.equal(find('--md-sys-typescale-display-large-size').value,3.5625);
+  assert.equal(find('--md-sys-typescale-display-large-size').value,57);
   assert.deepEqual(source.modules[3].submodules.map(s=>s.label),['Shape']);
   assert.deepEqual(source.modules[3].submodules[0].variables.map(v=>v.value),[0,4,8,12,16,28,9999]);
   assert.ok(source.modules[3].submodules[0].variables.every(v=>v.unit==='px'));

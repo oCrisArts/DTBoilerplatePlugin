@@ -56,9 +56,9 @@
           "name": "--text-xs",
           "figmaName": "Typography/Sizes/--text-xs",
           "type": "FLOAT",
-          "value": 0.75,
-          "unit": "rem",
-          "displayValue": "0.75rem",
+          "value": 12,
+          "unit": "px",
+          "displayValue": "12px",
           "tier": "primitive"
         },
         {
@@ -68,9 +68,9 @@
           "name": "--text-sm",
           "figmaName": "Typography/Sizes/--text-sm",
           "type": "FLOAT",
-          "value": 0.875,
-          "unit": "rem",
-          "displayValue": "0.875rem",
+          "value": 14,
+          "unit": "px",
+          "displayValue": "14px",
           "tier": "primitive"
         },
         {
@@ -80,9 +80,9 @@
           "name": "--text-base",
           "figmaName": "Typography/Sizes/--text-base",
           "type": "FLOAT",
-          "value": 1,
-          "unit": "rem",
-          "displayValue": "1rem",
+          "value": 16,
+          "unit": "px",
+          "displayValue": "16px",
           "tier": "primitive"
         },
         {
@@ -92,9 +92,9 @@
           "name": "--text-lg",
           "figmaName": "Typography/Sizes/--text-lg",
           "type": "FLOAT",
-          "value": 1.125,
-          "unit": "rem",
-          "displayValue": "1.125rem",
+          "value": 18,
+          "unit": "px",
+          "displayValue": "18px",
           "tier": "primitive"
         },
         {
@@ -104,9 +104,9 @@
           "name": "--text-xl",
           "figmaName": "Typography/Sizes/--text-xl",
           "type": "FLOAT",
-          "value": 1.25,
-          "unit": "rem",
-          "displayValue": "1.25rem",
+          "value": 20,
+          "unit": "px",
+          "displayValue": "20px",
           "tier": "primitive"
         },
         {
@@ -116,9 +116,9 @@
           "name": "--text-2xl",
           "figmaName": "Typography/Sizes/--text-2xl",
           "type": "FLOAT",
-          "value": 1.5,
-          "unit": "rem",
-          "displayValue": "1.5rem",
+          "value": 24,
+          "unit": "px",
+          "displayValue": "24px",
           "tier": "primitive"
         },
         {
@@ -128,9 +128,9 @@
           "name": "--text-3xl",
           "figmaName": "Typography/Sizes/--text-3xl",
           "type": "FLOAT",
-          "value": 1.875,
-          "unit": "rem",
-          "displayValue": "1.875rem",
+          "value": 30,
+          "unit": "px",
+          "displayValue": "30px",
           "tier": "primitive"
         },
         {
@@ -140,9 +140,9 @@
           "name": "--text-4xl",
           "figmaName": "Typography/Sizes/--text-4xl",
           "type": "FLOAT",
-          "value": 2.25,
-          "unit": "rem",
-          "displayValue": "2.25rem",
+          "value": 36,
+          "unit": "px",
+          "displayValue": "36px",
           "tier": "primitive"
         },
         {
@@ -152,9 +152,9 @@
           "name": "--text-5xl",
           "figmaName": "Typography/Sizes/--text-5xl",
           "type": "FLOAT",
-          "value": 3,
-          "unit": "rem",
-          "displayValue": "3rem",
+          "value": 48,
+          "unit": "px",
+          "displayValue": "48px",
           "tier": "primitive"
         },
         {
@@ -164,9 +164,9 @@
           "name": "--text-6xl",
           "figmaName": "Typography/Sizes/--text-6xl",
           "type": "FLOAT",
-          "value": 3.75,
-          "unit": "rem",
-          "displayValue": "3.75rem",
+          "value": 60,
+          "unit": "px",
+          "displayValue": "60px",
           "tier": "primitive"
         },
         {
@@ -176,9 +176,9 @@
           "name": "--text-7xl",
           "figmaName": "Typography/Sizes/--text-7xl",
           "type": "FLOAT",
-          "value": 4.5,
-          "unit": "rem",
-          "displayValue": "4.5rem",
+          "value": 72,
+          "unit": "px",
+          "displayValue": "72px",
           "tier": "primitive"
         },
         {
@@ -188,9 +188,9 @@
           "name": "--text-8xl",
           "figmaName": "Typography/Sizes/--text-8xl",
           "type": "FLOAT",
-          "value": 6,
-          "unit": "rem",
-          "displayValue": "6rem",
+          "value": 96,
+          "unit": "px",
+          "displayValue": "96px",
           "tier": "primitive"
         },
         {
@@ -200,9 +200,9 @@
           "name": "--text-9xl",
           "figmaName": "Typography/Sizes/--text-9xl",
           "type": "FLOAT",
-          "value": 8,
-          "unit": "rem",
-          "displayValue": "8rem",
+          "value": 128,
+          "unit": "px",
+          "displayValue": "128px",
           "tier": "primitive"
         }
       ]
