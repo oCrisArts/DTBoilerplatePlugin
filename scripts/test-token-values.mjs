@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
 const output = await build({entryPoints:['src/app/token-values.ts'],bundle:true,platform:'node',format:'esm',write:false});
-const {customize,typeScaleEdits,variablesOf,parseColor,hex,rgbToHsv,hsvToRgb,colorFamilies,recolorFamily,pixels} = await import(`data:text/javascript;base64,${Buffer.from(output.outputFiles[0].text).toString('base64')}`);
+const {customize,typeScaleEdits,variablesOf,parseColor,hex,rgbToHsv,hsvToRgb,colorFamilies,recolorFamily,pixels,toFigmaPixels,spacingEdits} = await import(`data:text/javascript;base64,${Buffer.from(output.outputFiles[0].text).toString('base64')}`);
 const read = path=>JSON.parse(readFileSync(`src/data/presets/${path}`,'utf8'));
 const catalog=read('catalog.json');
 const identity = ({value,displayValue,preview,...rest})=>rest;
@@ -11,6 +11,30 @@ for(const entry of catalog.presets){
   const preset=read(entry.path),modules=preset.modules.map(m=>read(`${entry.id}/${m.path}`));
   const source={preset,modules},snapshot=JSON.stringify(source),all=modules.flatMap(variablesOf);
   const typography=modules.find(m=>m.module==='typography');
+  const converter=typography.configuration.converter?.default;
+  if(converter){
+    const sourceSnapshot=JSON.stringify(modules);
+    const converted=toFigmaPixels(modules,converter),convertedVariables=converted.flatMap(variablesOf);
+    assert.ok(convertedVariables.every(v=>v.unit!=='rem'&&v.unit!=='em'),'Figma payload has no relative units');
+    assert.ok(convertedVariables.every(v=>v.type!=='FLOAT'||!v.unit||!['rem','em'].includes(v.unit)),'Only relative numeric values are converted');
+    assert.equal(JSON.stringify(modules),sourceSnapshot,'conversion preserves source module structures');
+    const relative=all.find(v=>v.type==='FLOAT'&&(v.unit==='rem'||v.unit==='em'));
+    assert.ok(relative);
+    const convertedValue=convertedVariables.find(v=>v.id===relative.id);
+    assert.equal(convertedValue.unit,'px');
+    assert.equal(convertedValue.value,Number((parseFloat(relative.displayValue)*converter).toFixed(4)));
+    const custom=toFigmaPixels(modules,20).flatMap(variablesOf).find(v=>v.id===relative.id);
+    assert.equal(custom.value,Number((parseFloat(relative.displayValue)*20).toFixed(4)),'custom converter applies across modules');
+    const spacing=all.find(v=>v.module==='layout'&&v.type==='FLOAT'&&(v.unit==='rem'||v.unit==='em'));
+    if(spacing){
+      const scales=all.filter(v=>v.module==='layout'&&v.submodule===spacing.submodule&&v.type==='FLOAT'&&(v.unit==='rem'||v.unit==='em'));
+      const edits=spacingEdits(scales,spacing,`${pixels(spacing,undefined,20)*2/20}${spacing.unit}`,20);
+      assert.equal(Number.parseFloat(edits[spacing.id]),Number((Number.parseFloat(spacing.displayValue)*2).toFixed(4)),'spacing scale honors custom converter');
+    }
+  } else {
+    assert.equal(entry.id,'starttoken','only StartToken omits the converter');
+    assert.deepEqual(toFigmaPixels(modules,16),modules);
+  }
   const base=variablesOf(typography).find(v=>v.id===typography.configuration.baseSize.default);
   const initial=typeScaleEdits(typography,pixels(base),typography.configuration.typeScale.referenceRatio);
   for(const [id,value] of Object.entries(initial))assert.ok(Math.abs(parseFloat(value)-parseFloat(all.find(v=>v.id===id).displayValue))<.001,`Default typography profile: ${id}`);

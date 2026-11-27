@@ -3,16 +3,16 @@
   "id": "bootstrap",
   "metadata": {
     "name": "Bootstrap",
-    "version": "5.3.3",
+    "version": "5.3.9",
     "description": "Selected official framework defaults; native units and color notation are preserved.",
     "sources": [
       {
-        "url": "https://raw.githubusercontent.com/twbs/bootstrap/v5.3.3/scss/_variables.scss",
-        "version": "5.3.3"
+        "url": "https://raw.githubusercontent.com/twbs/bootstrap/v5.3.9/scss/_variables.scss",
+        "version": "5.3.9"
       },
       {
-        "url": "https://github.com/twbs/bootstrap/blob/v5.3.3/scss/_utilities.scss",
-        "version": "5.3.3"
+        "url": "https://github.com/twbs/bootstrap/blob/v5.3.9/scss/_utilities.scss",
+        "version": "5.3.9"
       }
     ]
   },

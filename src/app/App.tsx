@@ -6,7 +6,7 @@ import { configureIconography, iconSvg } from './iconography';
 import { loadIconCatalog, loadIconLibrary, type IconCatalogEntry } from '@/data/icon-loader';
 import { loadPreset, catalog } from '@/data/preset-loader';
 import type { IconLibrary, ModuleId } from '@/data/preset-contract/types';
-import { customize, pixels, typeScaleEdits, variablesOf } from './token-values';
+import { customize, pixels, toFigmaPixels, typeScaleEdits, variablesOf } from './token-values';
 import { ColorsPanel, LayoutPanel, TypographyPanel } from './components/token-panels';
 import { Icon, fieldClass } from './components/token-controls';
 import { UnlockModal } from './components/UnlockModal';
@@ -32,6 +32,7 @@ export default function App() {
   const [edits,setEdits]=useState<Record<string,string>>({});
   const [query,setQuery]=useState('');
   const [ratio,setRatio]=useState(1.25);
+  const [converter,setConverter]=useState(16);
   const [fonts,setFonts]=useState<{family:string;style:string}[]>([]);
   const [fontError,setFontError]=useState('');
   const [fontsLoading,setFontsLoading]=useState(true);
@@ -73,7 +74,9 @@ export default function App() {
     return ()=>{current=false;};
   },[selected,libraryId,iconRetry]);
   const customized=configureIconography(baseCustomized,iconLibraries,edits);
-  const finalTokens=prepareTokens(customized.modules.flatMap(variablesOf));
+  const typographyConfig=customized.modules.find(m=>m.module==='typography')!.configuration;
+  const figmaModules=typographyConfig.converter?toFigmaPixels(customized.modules,converter):customized.modules;
+  const finalTokens=prepareTokens(figmaModules.flatMap(variablesOf));
   const module=customized.modules.find(m=>m.module===activeTab)!;
   const original=source.modules.find(m=>m.module===activeTab)!;
   const apply=(values:Record<string,string>)=>{setEdits(prev=>({...prev,...values}));setStatus('');};
@@ -87,7 +90,7 @@ export default function App() {
     if(Object.keys(edits).length&&id!==source.preset.id){setPending(id);return;}
     load(id);
   };
-  const load=(id:string)=>{setSource(loadPreset(id));setEdits({});setRatio((loadPreset(id).modules.find(m=>m.module==='typography')!.configuration as any).typeScale.referenceRatio);setSelectedIcon('');setQuery('');setActiveTab('colors');setSelected(true);setPending(null);setStatus('');};
+  const load=(id:string)=>{const next=loadPreset(id);setSource(next);setEdits({});const typography=next.modules.find(m=>m.module==='typography')!;setRatio(typography.configuration.typeScale.referenceRatio);setConverter(typography.configuration.converter?.default??16);setSelectedIcon('');setQuery('');setActiveTab('colors');setSelected(true);setPending(null);setStatus('');};
   const changeTab=(id:ModuleId)=>{setActiveTab(id);setQuery('');setStatus('');};
   useEffect(()=>{if(main.current)main.current.scrollTop=0;},[activeTab,selected,generation]);
   useEffect(()=>{
@@ -115,7 +118,7 @@ export default function App() {
     const properties=Object.fromEntries(iconVars.filter(v=>v.submodule==='library').map(v=>[v.name,v.displayValue]));
     const available=library.icons.filter(i=>i.variant===properties.variant);
     const icon=available.find(i=>i.name===selectedIcon)||available.find(i=>['home','house','house-door'].includes(i.name))||available[0];
-    parent.postMessage({pluginMessage:{iconPreview:{name:icon.name,library:library.name,svg:iconSvg(icon.svg,library,properties)},type:'generate-variables',tokens:snapshot.tokens,modules:customized.modules,presetName:snapshot.presetName}},'*');
+    parent.postMessage({pluginMessage:{iconPreview:{name:icon.name,library:library.name,svg:iconSvg(icon.svg,library,properties)},type:'generate-variables',tokens:snapshot.tokens,modules:figmaModules,presetName:snapshot.presetName}},'*');
   };
   return <div className="relative flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden bg-background font-sans text-foreground">
     {selected && source.preset.id === 'materialdesign' && <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap"/>}
@@ -130,9 +133,9 @@ export default function App() {
     {generation?<GenerationResultScreen snapshot={generation.snapshot} result={generation.result}/>:!selected?<div className="space-y-4"><h1 className="text-2xl font-medium leading-[1.6]">Welcome</h1><p className="text-lg leading-[1.4]">Choose a preset to customize your design token package.</p><div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,150px),1fr))] gap-4">{catalog.presets.map(p=><button key={p.id} onClick={()=>selectPreset(p.id)} className="flex min-h-[100px] min-w-0 flex-col items-center justify-center gap-2 rounded-lg border border-border bg-card p-2 shadow-[0_5px_12px_#0000001a] transition hover:border-accent hover:bg-secondary active:translate-y-px active:shadow-none"><img src={logos[p.id]} alt="" className="size-10 object-contain"/><span className="text-base font-medium text-muted-foreground">{p.name}</span></button>)}</div></div>:
     <div role="tabpanel" id={`panel-${activeTab}`} aria-labelledby={`tab-${activeTab}`} tabIndex={0} className="min-w-0 outline-none"><p className="text-lg leading-[1.4]">{subtitles[activeTab]}</p><div className={`${fieldClass} my-4`}><img src={searchIcon} width={10} height={10} alt=""/><input aria-label="Search tokens" placeholder="Search tokens..." value={query} onChange={e=>setQuery(e.target.value)} className="w-full min-w-0 bg-transparent py-2 text-[13px] outline-none placeholder:text-muted-foreground"/>{query&&<button aria-label="Clear search" className="flex size-8 shrink-0 items-center justify-center" onClick={()=>setQuery('')}><Icon name="close"/></button>}</div>
     {activeTab==='colors'&&<ColorsPanel key={`${source.preset.id}-colors`} module={module} original={original} query={query} onEdit={apply}/>}
-    {module.module==='typography'&&<TypographyPanel key={`${source.preset.id}-typography`} module={module} query={query} onEdit={apply} fonts={fonts} fontError={fontError} fontsLoading={fontsLoading} onRetryFonts={requestFonts} ratio={ratio} onRatio={setRatio} onGenerate={()=>{const base=variablesOf(module).find(v=>v.id===module.configuration.baseSize.default)!;apply(typeScaleEdits(original as typeof module,pixels(base),ratio));setStatus('Typography scale updated.');}}/>}
+    {module.module==='typography'&&<TypographyPanel key={`${source.preset.id}-typography`} module={module} query={query} onEdit={apply} fonts={fonts} fontError={fontError} fontsLoading={fontsLoading} onRetryFonts={requestFonts} ratio={ratio} onRatio={setRatio} converter={converter} onConverterChange={setConverter} onGenerate={()=>{const base=variablesOf(module).find(v=>v.id===module.configuration.baseSize.default)!;apply(typeScaleEdits(original as typeof module,pixels(base,undefined,converter),ratio,converter));setStatus('Typography scale updated.');}}/>}
     {module.module==='iconography'&&<IconographyPanel key={`${source.preset.id}-icons`} module={module} original={original as typeof module} libraries={iconCatalog} onLibraryChange={changeIconLibrary} library={activeLibrary} error={iconError} onRetry={()=>setIconRetry(value=>value+1)} query={query} onEdit={apply} selected={selectedIcon} onSelect={setSelectedIcon}/>}
-    {activeTab==='layout'&&<LayoutPanel key={`${source.preset.id}-layout`} module={module} original={original} query={query} onEdit={apply}/>}
+    {activeTab==='layout'&&<LayoutPanel key={`${source.preset.id}-layout`} module={module} original={original} query={query} onEdit={apply} converter={converter}/>}
     <p role="status" className="text-sm text-accent">{status}</p>{iconError&&activeTab!=='iconography'&&<p role="alert" className="text-sm">{iconError} <button onClick={()=>setIconRetry(value=>value+1)}>Retry icons</button></p>}</div>}
     </main>
     {generation?<footer className="result-footer"><button onClick={()=>setGeneration(null)}>Back to configuration</button></footer>:selected&&<footer className="shrink-0 bg-card px-3 py-4"><button onClick={generate} disabled={generating||!activeLibrary} className="flex min-h-[60px] w-full items-center justify-center gap-1.5 rounded-lg bg-primary px-3 text-base font-medium text-primary-foreground hover:opacity-90 active:translate-y-px">{!activeLibrary&&!iconError?'Loading icons…':'Generate tokens'}<Icon name="play_arrow" className="text-2xl"/></button></footer>}

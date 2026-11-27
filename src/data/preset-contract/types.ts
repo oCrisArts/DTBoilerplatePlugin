@@ -21,6 +21,7 @@ export interface TypographyConfiguration {
   fontFamily: ConfigurableReference;
   fontRoles: Partial<Record<'primary' | 'secondary' | 'monospace', { label: string; token: string; customizable: boolean }>>;
   baseSize: ConfigurableReference;
+  converter?: { default: number; customizable: boolean };
   typeScale: { kind: 'explicit'; steps: string[]; customizable: boolean; referenceRatio: number };
   lineHeight: ConfigurableReference;
 }

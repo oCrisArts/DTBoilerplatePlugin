@@ -3,12 +3,12 @@
   "id": "tailwindcss",
   "metadata": {
     "name": "Tailwind CSS",
-    "version": "4.1.12",
+    "version": "4.3.5",
     "description": "Selected official framework defaults; native units and color notation are preserved.",
     "sources": [
       {
-        "url": "https://raw.githubusercontent.com/tailwindlabs/tailwindcss/v4.1.12/packages/tailwindcss/theme.css",
-        "version": "4.1.12"
+        "url": "https://raw.githubusercontent.com/tailwindlabs/tailwindcss/v4.3.5/packages/tailwindcss/theme.css",
+        "version": "4.3.5"
       }
     ]
   },

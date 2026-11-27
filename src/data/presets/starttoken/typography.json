@@ -723,6 +723,10 @@
         "token": "typography.family.font-family-secondary",
         "customizable": true
       }
+    },
+    "converter": {
+      "default": 16,
+      "customizable": true
     }
   }
 }

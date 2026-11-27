@@ -4,7 +4,7 @@
   "metadata": {
     "name": "Material Design",
     "version": "2.5.0",
-    "description": "Material Design 3, official Material Web v2.5.0 tokens (Google Material 3 v0.192). Default light color scheme; typography and shape dimensions in px.",
+    "description": "Material Design 3, official Material Web v2.5.0 tokens (Google Material 3 v0.192). Default light color scheme; native rem typography and px shapes. Use the converter when generating Figma variables.",
     "sources": [
       {
         "url": "https://github.com/material-components/material-web/blob/b4de401eb665ec63474f39319a4ba8f2145974cc/tokens/_md-sys-color.scss",

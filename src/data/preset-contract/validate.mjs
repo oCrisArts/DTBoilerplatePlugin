@@ -84,6 +84,9 @@ export function validateModules(preset, modules) {
     check(config?.[key] && refs.has(config[key].default) && typeof config[key].customizable === 'boolean', `${key} configuration`);
     if (config[key].options) check(config[key].options.every(id => refs.has(id)), `${key} options`);
   }
+  if (config.converter !== undefined) check(Number.isFinite(config.converter.default) && config.converter.default > 0 && typeof config.converter.customizable === 'boolean', 'typography converter');
+  const usesRelativeUnits = modules.some(m => m.submodules.some(group => group.variables.some(v => v.unit === 'rem' || v.unit === 'em')));
+  if (usesRelativeUnits) check(config.converter !== undefined, 'relative units require a typography converter');
   check(config.typeScale?.kind === 'explicit' && typeof config.typeScale.customizable === 'boolean' && Array.isArray(config.typeScale.steps) && config.typeScale.steps.length > 0 && config.typeScale.steps.every(id => refs.has(id)), 'type scale');
   check(Number.isFinite(config.typeScale.referenceRatio) && config.typeScale.referenceRatio > 1, 'type scale reference ratio');
   check(config.fontRoles?.primary && unique(Object.values(config.fontRoles).map(r=>r.token)), 'font roles');

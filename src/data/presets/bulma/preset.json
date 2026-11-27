@@ -3,40 +3,40 @@
   "id": "bulma",
   "metadata": {
     "name": "Bulma",
-    "version": "1.0.2",
+    "version": "1.0.4",
     "description": "Selected official framework defaults; native units and color notation are preserved.",
     "sources": [
       {
-        "url": "https://raw.githubusercontent.com/jgthms/bulma/1.0.2/sass/utilities/initial-variables.scss",
-        "version": "1.0.2"
+        "url": "https://raw.githubusercontent.com/jgthms/bulma/1.0.4/sass/utilities/initial-variables.scss",
+        "version": "1.0.4"
       },
       {
-        "url": "https://raw.githubusercontent.com/jgthms/bulma/1.0.2/sass/utilities/derived-variables.scss",
-        "version": "1.0.2"
+        "url": "https://raw.githubusercontent.com/jgthms/bulma/1.0.4/sass/utilities/derived-variables.scss",
+        "version": "1.0.4"
       },
       {
-        "url": "https://raw.githubusercontent.com/jgthms/bulma/1.0.2/sass/base/generic.scss",
-        "version": "1.0.2"
+        "url": "https://raw.githubusercontent.com/jgthms/bulma/1.0.4/sass/base/generic.scss",
+        "version": "1.0.4"
       },
       {
-        "url": "https://raw.githubusercontent.com/jgthms/bulma/1.0.2/sass/helpers/spacing.scss",
-        "version": "1.0.2"
+        "url": "https://raw.githubusercontent.com/jgthms/bulma/1.0.4/sass/helpers/spacing.scss",
+        "version": "1.0.4"
       },
       {
-        "url": "https://raw.githubusercontent.com/jgthms/bulma/1.0.2/sass/grid/columns.scss",
-        "version": "1.0.2"
+        "url": "https://raw.githubusercontent.com/jgthms/bulma/1.0.4/sass/grid/columns.scss",
+        "version": "1.0.4"
       },
       {
-        "url": "https://github.com/jgthms/bulma/blob/1.0.2/sass/utilities/controls.scss",
-        "version": "1.0.2"
+        "url": "https://github.com/jgthms/bulma/blob/1.0.4/sass/utilities/controls.scss",
+        "version": "1.0.4"
       },
       {
-        "url": "https://github.com/jgthms/bulma/blob/1.0.2/sass/form/shared.scss",
-        "version": "1.0.2"
+        "url": "https://github.com/jgthms/bulma/blob/1.0.4/sass/form/shared.scss",
+        "version": "1.0.4"
       },
       {
         "url": "https://bulma.io/documentation/elements/button/",
-        "version": "1.0.2"
+        "version": "1.0.4"
       }
     ]
   },

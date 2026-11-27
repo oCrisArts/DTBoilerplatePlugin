@@ -5,7 +5,15 @@ export type HSV = { h: number; s: number; v: number; a: number };
 export const clamp = (n: number, max = 1) => Math.max(0, Math.min(max, n));
 export const round = (n: number) => Number(n.toFixed(4));
 export const variablesOf = (module: Module) => module.submodules.flatMap(s => s.variables);
-export const pixels = (variable: Variable, value = variable.displayValue) => parseFloat(value) * (variable.unit === 'rem' || variable.unit === 'em' ? 16 : 1);
+export const pixels = (variable: Variable, value = variable.displayValue, converter = 16) => parseFloat(value) * (variable.unit === 'rem' || variable.unit === 'em' ? converter : 1);
+export function toFigmaPixels(modules: Module[], converter: number) {
+  if (!Number.isFinite(converter) || converter <= 0) throw Error('Converter must be a positive pixel value.');
+  return modules.map(module => ({ ...module, submodules: module.submodules.map(group => ({ ...group, variables: group.variables.map(variable => {
+    if (variable.type !== 'FLOAT' || (variable.unit !== 'rem' && variable.unit !== 'em')) return variable;
+    const value = round(Number.parseFloat(variable.displayValue) * converter);
+    return { ...variable, value, unit: 'px', displayValue: `${value}px` };
+  }) })) }));
+}
 
 export function hsvToRgb({ h, s, v, a }: HSV): RGBA {
   const f = (n: number) => { const k = (n + h / 60) % 6; return v - v * s * Math.max(0, Math.min(k, 4 - k, 1)); };
@@ -53,8 +61,8 @@ export function parseColor(raw: string): RGBA | null {
   const match = s.match(/^(rgba?|hsla?|oklch)\(([^)]+)\)$/i);
   if (!match) return null;
   const parts = match[2].trim().split(/[\s,/]+/);
-  if (parts.length < 3 || parts.length > 4 || parts.some(p=>!/^[-+]?(?:\d*\.)?\d+(?:%|deg)?$/.test(p))) return null;
-  const [x,y,z] = parts.map(parseFloat), alpha = parts[3] ? parseFloat(parts[3])/(parts[3].includes('%')?100:1) : 1;
+  if (parts.length < 3 || parts.length > 4 || parts.some(p=>p!=='none'&&!/^[-+]?(?:\d*\.)?\d+(?:%|deg)?$/.test(p))) return null;
+  const [x,y,z] = parts.map(p=>p==='none'?0:parseFloat(p)), alpha = parts[3] ? (parts[3]==='none'?0:parseFloat(parts[3])/(parts[3].includes('%')?100:1)) : 1;
   if (alpha < 0 || alpha > 1) return null;
   const h = ((x%360)+360)%360;
   if (/^rgb/i.test(match[1])) {
@@ -130,20 +138,20 @@ export function recolorFamily(tokens: Variable[], base: Variable, next: RGBA) {
     return [v.id,colorValue(result,v)];
   }));
 }
-export function typeScaleEdits(module: Extract<Module,{module:'typography'}>, basePx:number, ratio:number) {
+export function typeScaleEdits(module: Extract<Module,{module:'typography'}>, basePx:number, ratio:number, converter=16) {
   const vars=variablesOf(module), base=vars.find(v=>v.id===module.configuration.baseSize.default)!;
-  const originalBase=pixels(base);
+  const originalBase=pixels(base,undefined,converter);
   const steps=module.configuration.typeScale.steps.map(id=>vars.find(v=>v.id===id)!).filter(Boolean);
   // Explicit presets are not ordered mathematical scales. Infer levels from their
   // native proportions so headings stay large, small text stays small, and aliases agree.
   return Object.fromEntries(steps.map(v=>{
-    const exponent=Math.log(pixels(v)/originalBase)/Math.log(module.configuration.typeScale.referenceRatio);
+    const exponent=Math.log(pixels(v,undefined,converter)/originalBase)/Math.log(module.configuration.typeScale.referenceRatio);
     const px=basePx*Math.pow(ratio,exponent);
-    return [v.id,`${round(px/(v.unit==='rem'||v.unit==='em'?16:1))}${v.unit||''}`];
+    return [v.id,`${round(px/(v.unit==='rem'||v.unit==='em'?converter:1))}${v.unit||''}`];
   }));
 }
 
-export function spacingEdits(variables: Variable[], base: Variable, value: string) {
-  const factor = pixels(base,value) / pixels(base);
+export function spacingEdits(variables: Variable[], base: Variable, value: string, converter=16) {
+  const factor = pixels(base,value,converter) / pixels(base,undefined,converter);
   return Object.fromEntries(variables.map(v=>[v.id,`${round(Number(v.value)*factor)}${v.unit||''}`]));
 }
